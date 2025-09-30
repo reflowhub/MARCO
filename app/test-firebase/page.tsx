@@ -1,19 +1,29 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
-import { db } from '@/lib/firebase';
-import { collection, addDoc, getDocs } from 'firebase/firestore';
 
 export default function TestFirebase() {
   const [status, setStatus] = useState<string>('Checking connection...');
   const [testData, setTestData] = useState<any[]>([]);
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    testConnection();
+    setIsClient(true);
   }, []);
+
+  useEffect(() => {
+    if (isClient) {
+      testConnection();
+    }
+  }, [isClient]);
 
   const testConnection = async () => {
     try {
+      // Dynamically import Firebase only on client side
+      const { db } = await import('@/lib/firebase');
+      const { collection, getDocs } = await import('firebase/firestore');
+
       // Test Firestore connection
       setStatus('Testing Firestore connection...');
 
@@ -36,6 +46,9 @@ export default function TestFirebase() {
 
   const addTestDocument = async () => {
     try {
+      const { db } = await import('@/lib/firebase');
+      const { collection, addDoc } = await import('firebase/firestore');
+
       setStatus('Adding test document...');
       const docRef = await addDoc(collection(db, 'test'), {
         message: 'Hello from MARCO!',
