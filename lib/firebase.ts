@@ -14,7 +14,7 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || '',
 };
 
-let app, auth, db, storage;
+let app: any, auth: any, db: any, storage: any;
 
 if (typeof window !== 'undefined') {
   // Only initialize Firebase on client side
@@ -24,14 +24,14 @@ if (typeof window !== 'undefined') {
   storage = getStorage(app);
 } else {
   // Placeholder for SSR
-  app = {} as any;
-  auth = {} as any;
-  db = {} as any;
-  storage = {} as any;
+  app = {};
+  auth = {};
+  db = {};
+  storage = {};
 }
 
 // Initialize Analytics only on client side and if supported
-let analytics;
+let analytics: any;
 if (typeof window !== 'undefined') {
   isSupported().then((supported) => {
     if (supported) {
