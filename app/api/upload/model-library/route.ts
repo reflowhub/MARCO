@@ -3,8 +3,25 @@ import { adminDb } from '@/lib/firebase-admin';
 import { parseModelLibrary } from '@/lib/excel-parser';
 import { COLLECTIONS } from '@/lib/firebase-collections';
 
+// Disable Edge Runtime - use Node.js runtime for Firebase Admin
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
+    console.log('Model library upload route called');
+
+    // Verify Firebase Admin is initialized
+    if (!adminDb) {
+      console.error('Firebase Admin DB not initialized');
+      return NextResponse.json(
+        { error: 'Database not initialized. Check Firebase Admin credentials.' },
+        { status: 500 }
+      );
+    }
+
+    console.log('Firebase Admin DB is initialized');
+
     const formData = await request.formData();
     const file = formData.get('file') as File;
 
@@ -12,8 +29,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
+    console.log('Processing file:', file.name, 'Size:', file.size, 'Type:', file.type);
+
+    // Validate file type
+    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+      return NextResponse.json(
+        { error: 'Invalid file type. Please upload an Excel file (.xlsx or .xls)' },
+        { status: 400 }
+      );
+    }
+
     // Parse the Excel file
+    console.log('Starting Excel parsing...');
     const { devices, errors } = await parseModelLibrary(file);
+    console.log('Parsing complete. Devices:', devices.length, 'Errors:', errors.length);
 
     if (errors.length > 0) {
       return NextResponse.json(
