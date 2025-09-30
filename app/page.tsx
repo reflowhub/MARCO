@@ -8,12 +8,20 @@ export default function Home() {
           <h1 className="text-4xl font-bold mb-2">MARCO</h1>
           <p className="text-xl">Mobile Asset Recovery and Circulation Operations</p>
         </div>
-        <Link
-          href="/admin/dashboard"
-          className="bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 font-semibold"
-        >
-          Go to Admin Dashboard →
-        </Link>
+        <div className="flex gap-4">
+          <Link
+            href="/login"
+            className="bg-white border-2 border-blue-600 text-blue-600 px-6 py-3 rounded-md hover:bg-blue-50 font-semibold"
+          >
+            Login
+          </Link>
+          <Link
+            href="/admin/dashboard"
+            className="bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 font-semibold"
+          >
+            Admin Dashboard →
+          </Link>
+        </div>
       </div>
 
       <div className="grid text-center lg:max-w-5xl lg:w-full lg:grid-cols-3 lg:text-left gap-6">

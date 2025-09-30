@@ -1,7 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { signOut } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { useAuth } from '@/app/contexts/AuthContext';
 import CommitInfo from '@/app/components/CommitInfo';
 
 export default function AdminLayout({
@@ -10,6 +14,35 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, loading } = useAuth();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login');
+    }
+  }, [user, loading, router]);
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      router.push('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-gray-600">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
 
   const navLinks = [
     { href: '/admin/dashboard', label: 'Dashboard' },
@@ -32,9 +65,13 @@ export default function AdminLayout({
               MARCO Admin
             </Link>
             <div className="flex items-center space-x-4">
-              <Link href="/" className="text-gray-700 hover:text-gray-900 text-sm">
-                Back to Home
-              </Link>
+              <span className="text-sm text-gray-600">{user.email}</span>
+              <button
+                onClick={handleLogout}
+                className="text-sm text-gray-700 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-3 py-2 rounded-md"
+              >
+                Logout
+              </button>
             </div>
           </div>
         </div>
