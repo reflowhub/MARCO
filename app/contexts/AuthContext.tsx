@@ -21,8 +21,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Dynamically import auth to avoid SSR issues
-    import('@/lib/firebase').then(({ auth }) => {
-      const unsubscribe = onAuthStateChanged(auth, (user) => {
+    import('@/lib/firebase').then((module) => {
+      const unsubscribe = onAuthStateChanged(module.auth as any, (user) => {
         setUser(user);
         setLoading(false);
       });
