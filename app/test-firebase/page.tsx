@@ -21,14 +21,14 @@ export default function TestFirebase() {
   const testConnection = async () => {
     try {
       // Dynamically import Firebase only on client side
-      const { db } = await import('@/lib/firebase');
+      const firebaseModule = await import('@/lib/firebase');
       const { collection, getDocs } = await import('firebase/firestore');
 
       // Test Firestore connection
       setStatus('Testing Firestore connection...');
 
       // Try to read from a test collection
-      const testCollection = collection(db, 'test');
+      const testCollection = collection(firebaseModule.db as any, 'test');
       const snapshot = await getDocs(testCollection);
 
       const data = snapshot.docs.map(doc => ({
@@ -46,11 +46,11 @@ export default function TestFirebase() {
 
   const addTestDocument = async () => {
     try {
-      const { db } = await import('@/lib/firebase');
+      const firebaseModule = await import('@/lib/firebase');
       const { collection, addDoc } = await import('firebase/firestore');
 
       setStatus('Adding test document...');
-      const docRef = await addDoc(collection(db, 'test'), {
+      const docRef = await addDoc(collection(firebaseModule.db as any, 'test'), {
         message: 'Hello from MARCO!',
         timestamp: new Date().toISOString(),
         random: Math.floor(Math.random() * 1000)
