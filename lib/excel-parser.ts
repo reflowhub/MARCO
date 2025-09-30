@@ -103,7 +103,7 @@ export async function parseTradeIns(file: File, supplierId: string): Promise<Par
         };
 
         // Validate required fields
-        if (!tradeIn.deviceModel || !tradeIn.grade || isNaN(tradeIn.costNZD) || !tradeIn.dateBooked) {
+        if (!tradeIn.deviceModel || !tradeIn.grade || typeof tradeIn.costNZD !== 'number' || isNaN(tradeIn.costNZD) || !tradeIn.dateBooked) {
           errors.push(`Row ${index + 2}: Missing or invalid required fields (Model, Grade, Cost, Date Booked)`);
         } else {
           tradeIns.push(tradeIn);
@@ -159,7 +159,7 @@ export async function parseCustomerBids(
         };
 
         // Validate required fields
-        if (!bid.deviceModel || !bid.grade || isNaN(bid.bidAmount)) {
+        if (!bid.deviceModel || !bid.grade || typeof bid.bidAmount !== 'number' || isNaN(bid.bidAmount)) {
           errors.push(`Row ${index + 2}: Missing or invalid required fields (Model, Grade, Bid Amount)`);
         } else {
           bids.push(bid);
