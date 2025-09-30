@@ -4,7 +4,7 @@ import Link from 'next/link';
 
 export default function Navigation() {
   // Temporarily disable auth until properly configured
-  const user = null;
+  const user: { email?: string } | null = null;
 
   return (
     <nav className="bg-white shadow-sm border-b">
