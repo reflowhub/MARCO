@@ -47,7 +47,15 @@ MARCO/
 6. Complete sales in USD
 
 ## Technical Stack
-(To be determined based on requirements)
+- **Frontend**: Next.js 15 with TypeScript and React 18
+- **Styling**: Tailwind CSS
+- **Backend/Database**: Firebase (Firestore, Authentication, Storage)
+- **Hosting**: Vercel (Next.js) / Firebase Hosting
+- **State Management**: React Context API
+- **Data Processing**: Python scripts for Excel standardization
 
 ## Project Status
 Initial project setup - Under development
+- Next.js application scaffolded
+- Firebase integration configured
+- Basic project structure established
