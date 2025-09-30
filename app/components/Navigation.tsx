@@ -3,9 +3,6 @@
 import Link from 'next/link';
 
 export default function Navigation() {
-  // Temporarily disable auth until properly configured
-  const user: { email?: string } | null = null;
-
   return (
     <nav className="bg-white shadow-sm border-b">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -30,13 +27,9 @@ export default function Navigation() {
             </div>
           </div>
           <div className="flex items-center">
-            {user?.email ? (
-              <span className="text-gray-700 text-sm">{user.email}</span>
-            ) : (
-              <Link href="/login" className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
-                Login
-              </Link>
-            )}
+            <Link href="/login" className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
+              Login
+            </Link>
           </div>
         </div>
       </div>
