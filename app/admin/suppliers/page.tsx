@@ -5,12 +5,15 @@ import { collection, addDoc, getDocs, updateDoc, deleteDoc, doc } from 'firebase
 import { db } from '@/lib/firebase';
 import { COLLECTIONS } from '@/lib/firebase-collections';
 import { Supplier, Currency } from '@/lib/types';
+import FirebaseStatus from '@/app/components/FirebaseStatus';
 
 export default function SuppliersPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -28,14 +31,16 @@ export default function SuppliersPage() {
 
   const loadSuppliers = async () => {
     try {
+      setError(null);
       const querySnapshot = await getDocs(collection(db, COLLECTIONS.SUPPLIERS));
       const data = querySnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       })) as Supplier[];
       setSuppliers(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading suppliers:', error);
+      setError(`Failed to load suppliers: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -43,6 +48,8 @@ export default function SuppliersPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+    setSuccess(null);
 
     try {
       if (editingId) {
@@ -52,6 +59,7 @@ export default function SuppliersPage() {
           ...formData,
           updatedAt: new Date(),
         });
+        setSuccess('Supplier updated successfully!');
       } else {
         // Add new supplier
         await addDoc(collection(db, COLLECTIONS.SUPPLIERS), {
@@ -59,12 +67,14 @@ export default function SuppliersPage() {
           createdAt: new Date(),
           updatedAt: new Date(),
         });
+        setSuccess('Supplier created successfully!');
       }
 
       resetForm();
-      loadSuppliers();
-    } catch (error) {
+      await loadSuppliers();
+    } catch (error: any) {
       console.error('Error saving supplier:', error);
+      setError(`Failed to save supplier: ${error.message}`);
     }
   };
 
@@ -120,6 +130,23 @@ export default function SuppliersPage() {
           {showForm ? 'Cancel' : 'Add Supplier'}
         </button>
       </div>
+
+      {/* Firebase Status */}
+      <div className="mb-6">
+        <FirebaseStatus />
+      </div>
+
+      {/* Error/Success Messages */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md mb-6">
+          {error}
+        </div>
+      )}
+      {success && (
+        <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md mb-6">
+          {success}
+        </div>
+      )}
 
       {/* Form */}
       {showForm && (
