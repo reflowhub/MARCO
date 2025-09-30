@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import CommitInfo from '@/app/components/CommitInfo';
 
 export default function AdminLayout({
   children,
@@ -41,8 +42,8 @@ export default function AdminLayout({
 
       {/* Side Navigation */}
       <div className="flex">
-        <aside className="w-64 bg-white shadow-sm min-h-[calc(100vh-4rem)]">
-          <nav className="p-4 space-y-1">
+        <aside className="w-64 bg-white shadow-sm min-h-[calc(100vh-4rem)] flex flex-col">
+          <nav className="p-4 space-y-1 flex-1">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
@@ -57,6 +58,7 @@ export default function AdminLayout({
               </Link>
             ))}
           </nav>
+          <CommitInfo />
         </aside>
 
         {/* Main Content */}
