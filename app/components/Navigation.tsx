@@ -1,10 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useAuth } from '@/app/contexts/AuthContext';
 
 export default function Navigation() {
-  const { user } = useAuth();
+  // Temporarily disable auth until properly configured
+  const user = null;
 
   return (
     <nav className="bg-white shadow-sm border-b">
