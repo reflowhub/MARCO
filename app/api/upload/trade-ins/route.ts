@@ -1,0 +1,75 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { adminDb } from '@/lib/firebase-admin';
+import { parseTradeIns } from '@/lib/excel-parser';
+import { COLLECTIONS } from '@/lib/firebase-collections';
+
+export async function POST(request: NextRequest) {
+  try {
+    const formData = await request.formData();
+    const file = formData.get('file') as File;
+    const supplierId = formData.get('supplierId') as string;
+    const auctionDate = formData.get('auctionDate') as string;
+
+    if (!file) {
+      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+    }
+
+    if (!supplierId) {
+      return NextResponse.json({ error: 'Supplier ID required' }, { status: 400 });
+    }
+
+    // Parse the Excel file
+    const { tradeIns, errors } = await parseTradeIns(file, supplierId);
+
+    if (errors.length > 0) {
+      return NextResponse.json(
+        { error: 'Parsing errors', details: errors },
+        { status: 400 }
+      );
+    }
+
+    // Store trade-ins in Firestore
+    const batch = adminDb.batch();
+    const tradeInsRef = adminDb.collection(COLLECTIONS.TRADE_INS);
+
+    tradeIns.forEach((tradeIn) => {
+      const docRef = tradeInsRef.doc();
+      batch.set(docRef, {
+        ...tradeIn,
+        id: docRef.id,
+        auctionDate: auctionDate ? new Date(auctionDate) : null,
+        status: auctionDate ? 'auction' : 'pending',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    });
+
+    await batch.commit();
+
+    // Log upload history
+    const uploadHistoryRef = adminDb.collection(COLLECTIONS.UPLOAD_HISTORY).doc();
+    await uploadHistoryRef.set({
+      id: uploadHistoryRef.id,
+      fileName: file.name,
+      fileType: 'trade-ins',
+      uploadDate: new Date(),
+      uploadedBy: 'system', // TODO: Get from auth
+      supplierId,
+      auctionDate: auctionDate ? new Date(auctionDate) : null,
+      recordsProcessed: tradeIns.length,
+      status: 'completed',
+      createdAt: new Date(),
+    });
+
+    return NextResponse.json({
+      success: true,
+      recordsProcessed: tradeIns.length,
+    });
+  } catch (error: any) {
+    console.error('Trade-ins upload error:', error);
+    return NextResponse.json(
+      { error: 'Upload failed', message: error.message },
+      { status: 500 }
+    );
+  }
+}
