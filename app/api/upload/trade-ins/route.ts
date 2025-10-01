@@ -9,6 +9,7 @@ export async function POST(request: NextRequest) {
     const file = formData.get('file') as File;
     const supplierId = formData.get('supplierId') as string;
     const purchaseDate = formData.get('purchaseDate') as string;
+    const currency = formData.get('currency') as string;
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
@@ -16,6 +17,10 @@ export async function POST(request: NextRequest) {
 
     if (!supplierId) {
       return NextResponse.json({ error: 'Supplier ID required' }, { status: 400 });
+    }
+
+    if (!currency) {
+      return NextResponse.json({ error: 'Currency required' }, { status: 400 });
     }
 
     // Parse the Excel file
@@ -37,6 +42,7 @@ export async function POST(request: NextRequest) {
       batch.set(docRef, {
         ...tradeIn,
         id: docRef.id,
+        currency,
         purchaseDate: purchaseDate ? new Date(purchaseDate) : null,
         status: 'pending',
         createdAt: new Date(),

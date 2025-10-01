@@ -87,14 +87,14 @@ export async function parseTradeIns(file: File, supplierId: string): Promise<Par
       try {
         // Try multiple column name variations
         const dateBooked = row['Date Booked'] || row['date_booked'] || row['Date'] || row['date'];
-        const costNZD = row['Cost'] || row['cost'] || row['Cost (NZD)'] || row['cost_nzd'];
+        const costValue = row['Cost'] || row['cost'] || row['Cost (NZD)'] || row['cost_nzd'];
 
         const tradeIn: Partial<TradeIn> = {
           supplierId,
           deviceModel: row['Model'] || row['model'],
           storageVariant: row['Storage'] || row['storage'] || row['Storage Variant'],
           grade: row['Grade'] || row['grade'],
-          costNZD: parseFloat(costNZD),
+          cost: parseFloat(costValue),
           dateBooked: parseExcelDate(dateBooked),
           platform: (row['Platform'] || row['platform']) as 'Android' | 'Apple',
           status: 'pending',
@@ -103,7 +103,7 @@ export async function parseTradeIns(file: File, supplierId: string): Promise<Par
         };
 
         // Validate required fields
-        if (!tradeIn.deviceModel || !tradeIn.grade || typeof tradeIn.costNZD !== 'number' || isNaN(tradeIn.costNZD) || !tradeIn.dateBooked) {
+        if (!tradeIn.deviceModel || !tradeIn.grade || typeof tradeIn.cost !== 'number' || isNaN(tradeIn.cost) || !tradeIn.dateBooked) {
           errors.push(`Row ${index + 2}: Missing or invalid required fields (Model, Grade, Cost, Date Booked)`);
         } else {
           tradeIns.push(tradeIn);

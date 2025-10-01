@@ -19,7 +19,8 @@ export default function UploadPage() {
   const [customerId, setCustomerId] = useState('');
   const [purchaseDate, setPurchaseDate] = useState(''); // For trade-ins
   const [auctionDate, setAuctionDate] = useState(''); // For customer bids
-  const [currency, setCurrency] = useState<'USD' | 'AUD'>('USD');
+  const [tradeInCurrency, setTradeInCurrency] = useState<'NZD' | 'USD' | 'AUD'>('NZD'); // For trade-ins
+  const [customerBidCurrency, setCustomerBidCurrency] = useState<'USD' | 'AUD'>('USD'); // For customer bids
 
   // Data from Firestore
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -74,6 +75,7 @@ export default function UploadPage() {
           return;
         }
         formData.append('supplierId', supplierId);
+        formData.append('currency', tradeInCurrency);
         if (purchaseDate) {
           formData.append('purchaseDate', purchaseDate);
         }
@@ -92,7 +94,7 @@ export default function UploadPage() {
         }
         formData.append('customerId', customerId);
         formData.append('auctionDate', auctionDate);
-        formData.append('currency', currency);
+        formData.append('currency', customerBidCurrency);
       }
 
       const response = await fetch(`/api/upload/${activeTab}`, {
@@ -247,6 +249,23 @@ export default function UploadPage() {
                   Date of bulk purchase from supplier (if different from individual device booking dates in the file)
                 </p>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Currency *
+                </label>
+                <select
+                  value={tradeInCurrency}
+                  onChange={(e) => setTradeInCurrency(e.target.value as 'NZD' | 'USD' | 'AUD')}
+                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border"
+                >
+                  <option value="NZD">NZD</option>
+                  <option value="USD">USD</option>
+                  <option value="AUD">AUD</option>
+                </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  Currency of the costs in the file
+                </p>
+              </div>
             </>
           )}
 
@@ -292,8 +311,8 @@ export default function UploadPage() {
                   Currency *
                 </label>
                 <select
-                  value={currency}
-                  onChange={(e) => setCurrency(e.target.value as 'USD' | 'AUD')}
+                  value={customerBidCurrency}
+                  onChange={(e) => setCustomerBidCurrency(e.target.value as 'USD' | 'AUD')}
                   className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border"
                 >
                   <option value="USD">USD</option>
@@ -348,8 +367,8 @@ export default function UploadPage() {
               <li>Upload standardized trade-in files from suppliers (your purchase records)</li>
               <li>Expected columns: Date Booked, Model, Grade, Cost, Storage, Platform</li>
               <li>Date Booked = Individual device booking/acquisition date</li>
-              <li>Cost should be in NZD (what you paid the supplier)</li>
-              <li>Select the supplier and optionally the bulk purchase date</li>
+              <li>Select the supplier, currency, and optionally the bulk purchase date</li>
+              <li>Currency determines how cost values in the file are interpreted</li>
             </>
           )}
           {activeTab === 'customer-bids' && (

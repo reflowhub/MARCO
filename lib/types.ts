@@ -44,7 +44,8 @@ export interface TradeIn {
   deviceModel: string;
   storageVariant?: string;
   grade: string;
-  costNZD: number;
+  cost: number;
+  currency: Currency;
   dateBooked: Date; // Date supplier recorded the trade-in (from Excel)
   purchaseDate?: Date; // Bulk purchase date from supplier (upload metadata)
   auctionDate?: Date; // Date we tender out the lot to customers
