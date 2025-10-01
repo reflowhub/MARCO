@@ -234,7 +234,7 @@ export default function UploadPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Auction Date (Optional)
+                  Planned Auction Date (Optional)
                 </label>
                 <input
                   type="date"
@@ -242,6 +242,9 @@ export default function UploadPage() {
                   onChange={(e) => setAuctionDate(e.target.value)}
                   className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border"
                 />
+                <p className="mt-1 text-xs text-gray-500">
+                  When you plan to tender these devices to customers (optional)
+                </p>
               </div>
             </>
           )}
@@ -341,10 +344,11 @@ export default function UploadPage() {
           )}
           {activeTab === 'trade-ins' && (
             <>
-              <li>Upload standardized trade-in files from suppliers</li>
+              <li>Upload standardized trade-in files from suppliers (your purchase records)</li>
               <li>Expected columns: Date Booked, Model, Grade, Cost, Storage, Platform</li>
-              <li>Cost should be in NZD</li>
-              <li>Select the supplier and optionally set an auction date</li>
+              <li>Date Booked = Purchase date from supplier (when device was booked/acquired)</li>
+              <li>Cost should be in NZD (what you paid the supplier)</li>
+              <li>Select the supplier and optionally set a planned auction date for tendering to customers</li>
             </>
           )}
           {activeTab === 'customer-bids' && (
