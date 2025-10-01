@@ -10,7 +10,7 @@ import Link from 'next/link';
 export default function DashboardPage() {
   const [stats, setStats] = useState({
     totalDevices: 0,
-    totalCostNZD: 0,
+    totalCost: 0,
     pendingDevices: 0,
     auctionDevices: 0,
     soldDevices: 0,
@@ -45,8 +45,8 @@ export default function DashboardPage() {
         ...doc.data(),
       })) as CustomerBid[];
 
-      // Calculate stats
-      const totalCostNZD = tradeIns.reduce((sum, t) => sum + (t.costNZD || 0), 0);
+      // Calculate stats (sum all costs, treating different currencies separately would require conversion rates)
+      const totalCost = tradeIns.reduce((sum, t) => sum + (t.cost || 0), 0);
       const pendingDevices = tradeIns.filter((t) => t.status === 'pending').length;
       const auctionDevices = tradeIns.filter((t) => t.status === 'auction').length;
       const soldDevices = tradeIns.filter((t) => t.status === 'sold').length;
@@ -86,7 +86,7 @@ export default function DashboardPage() {
 
       setStats({
         totalDevices: tradeIns.length,
-        totalCostNZD,
+        totalCost,
         pendingDevices,
         auctionDevices,
         soldDevices,
@@ -122,11 +122,11 @@ export default function DashboardPage() {
         </div>
 
         <div className="bg-white p-6 rounded-lg shadow">
-          <div className="text-sm text-gray-600 mb-1">Total Inventory Value</div>
+          <div className="text-sm text-gray-600 mb-1">Total Inventory Cost</div>
           <div className="text-3xl font-bold text-gray-900">
-            ${stats.totalCostNZD.toLocaleString('en-NZ', { maximumFractionDigits: 0 })}
+            ${stats.totalCost.toLocaleString('en-US', { maximumFractionDigits: 0 })}
           </div>
-          <div className="text-xs text-gray-500 mt-2">NZD</div>
+          <div className="text-xs text-gray-500 mt-2">Mixed currencies</div>
         </div>
 
         <div className="bg-white p-6 rounded-lg shadow">
