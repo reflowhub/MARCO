@@ -86,17 +86,37 @@ export async function parseTradeIns(file: File, supplierId: string): Promise<Par
     data.forEach((row: any, index: number) => {
       try {
         // Try multiple column name variations
-        const dateBooked = row['Date Booked'] || row['date_booked'] || row['Date'] || row['date'];
-        const costValue = row['Cost'] || row['cost'] || row['Cost (NZD)'] || row['cost_nzd'];
+        const dateBooked = row['Date Booked'] || row['Date_Booked'] || row['date_booked'] || row['Date'] || row['date'];
+        const costValue = row['Cost'] || row['cost'] || row['Price'] || row['price'] || row['Cost (NZD)'] || row['cost_nzd'];
+
+        // Model can be in multiple fields
+        const modelValue = row['Model'] || row['model'] || row['Library_Model_Storage'];
+
+        // Storage variant extraction
+        const storageVariant = row['Storage'] || row['storage'] || row['Storage Variant'];
+
+        // Platform detection from multiple fields
+        let platform: 'Android' | 'Apple' = 'Android';
+        const platformField = row['Platform'] || row['platform'];
+        const manufacturer = row['Manufacturer'] || row['Library_Make'] || row['Make'];
+
+        if (platformField) {
+          platform = platformField as 'Android' | 'Apple';
+        } else if (manufacturer) {
+          // Auto-detect platform from manufacturer
+          platform = manufacturer.toLowerCase().includes('apple') ? 'Apple' : 'Android';
+        } else if (modelValue && modelValue.toLowerCase().includes('iphone')) {
+          platform = 'Apple';
+        }
 
         const tradeIn: Partial<TradeIn> = {
           supplierId,
-          deviceModel: row['Model'] || row['model'],
-          storageVariant: row['Storage'] || row['storage'] || row['Storage Variant'],
+          deviceModel: modelValue,
+          storageVariant,
           grade: row['Grade'] || row['grade'],
           cost: parseFloat(costValue),
           dateBooked: parseExcelDate(dateBooked),
-          platform: (row['Platform'] || row['platform']) as 'Android' | 'Apple',
+          platform,
           status: 'pending',
           createdAt: new Date(),
           updatedAt: new Date(),
