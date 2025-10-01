@@ -106,6 +106,9 @@ export default function ModelLibraryPage() {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                Device ID
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                 Manufacturer
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -122,6 +125,9 @@ export default function ModelLibraryPage() {
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredDevices.map((device) => (
               <tr key={device.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {device.specifications?.deviceId || '-'}
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                   {device.manufacturer}
                 </td>
