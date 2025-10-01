@@ -84,6 +84,7 @@ async function seedModelLibrary() {
         model,
         storageVariant: storageVariant || '',
         platform,
+        sortOrder: index, // Initialize with row index, can be manually reordered later
         specifications,
         createdAt: new Date(),
         updatedAt: new Date(),

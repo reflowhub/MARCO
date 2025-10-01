@@ -32,6 +32,7 @@ export interface ModelLibraryDevice {
   model: string;
   storageVariant: string;
   platform: 'Android' | 'Apple';
+  sortOrder: number; // Manual ordering for grouping devices
   specifications?: Record<string, any>;
   createdAt: Date;
   updatedAt: Date;
