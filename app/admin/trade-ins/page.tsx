@@ -70,7 +70,7 @@ export default function TradeInsPage() {
     return true;
   });
 
-  const totalCost = filteredTradeIns.reduce((sum, t) => sum + t.costNZD, 0);
+  const totalCost = filteredTradeIns.reduce((sum, t) => sum + t.cost, 0);
   const averageLeadTime = calculateAverageLeadTime(filteredTradeIns);
 
   if (loading) {
@@ -205,7 +205,9 @@ export default function TradeInsPage() {
                       {tradeIn.platform}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-900">${tradeIn.costNZD.toFixed(2)}</td>
+                  <td className="px-4 py-3 text-sm text-gray-900">
+                    ${tradeIn.cost.toFixed(2)} {tradeIn.currency}
+                  </td>
                   <td className="px-4 py-3 text-sm text-gray-500">
                     {suppliers[tradeIn.supplierId]?.name || 'Unknown'}
                   </td>
