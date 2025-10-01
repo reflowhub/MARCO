@@ -49,24 +49,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Store trade-ins in Firestore
-    const batch = adminDb.batch();
+    // Store trade-ins in Firestore (batch max 500 operations)
+    console.log('Writing to Firestore...');
     const tradeInsRef = adminDb.collection(COLLECTIONS.TRADE_INS);
+    const batchSize = 500;
 
-    tradeIns.forEach((tradeIn) => {
-      const docRef = tradeInsRef.doc();
-      batch.set(docRef, {
-        ...tradeIn,
-        id: docRef.id,
-        currency,
-        purchaseDate: purchaseDate ? new Date(purchaseDate) : null,
-        status: 'pending',
-        createdAt: new Date(),
-        updatedAt: new Date(),
+    for (let i = 0; i < tradeIns.length; i += batchSize) {
+      const batch = adminDb.batch();
+      const chunk = tradeIns.slice(i, i + batchSize);
+
+      chunk.forEach((tradeIn) => {
+        const docRef = tradeInsRef.doc();
+        batch.set(docRef, {
+          ...tradeIn,
+          id: docRef.id,
+          currency,
+          purchaseDate: purchaseDate ? new Date(purchaseDate) : null,
+          status: 'pending',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
       });
-    });
 
-    await batch.commit();
+      await batch.commit();
+      console.log(`Committed batch ${Math.floor(i / batchSize) + 1}: ${chunk.length} records`);
+    }
+
+    console.log('All batches committed successfully');
 
     // Log upload history
     const uploadHistoryRef = adminDb.collection(COLLECTIONS.UPLOAD_HISTORY).doc();
