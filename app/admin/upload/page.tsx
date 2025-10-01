@@ -128,11 +128,21 @@ export default function UploadPage() {
         // Reset form
         setSupplierId('');
         setCustomerId('');
+        setPurchaseDate('');
         setAuctionDate('');
       } else {
+        // Show detailed error message
+        let errorMsg = data.error || 'Upload failed';
+        if (data.details && Array.isArray(data.details)) {
+          errorMsg += `\n\nFirst errors:\n${data.details.slice(0, 5).join('\n')}`;
+        }
+        if (data.message) {
+          errorMsg += `\n\nDetails: ${data.message}`;
+        }
+        console.error('Upload error:', data);
         setResult({
           success: false,
-          message: data.error || 'Upload failed',
+          message: errorMsg,
         });
       }
     } catch (error: any) {
