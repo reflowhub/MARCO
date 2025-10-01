@@ -17,7 +17,8 @@ export default function UploadPage() {
   // Form state
   const [supplierId, setSupplierId] = useState('');
   const [customerId, setCustomerId] = useState('');
-  const [auctionDate, setAuctionDate] = useState('');
+  const [purchaseDate, setPurchaseDate] = useState(''); // For trade-ins
+  const [auctionDate, setAuctionDate] = useState(''); // For customer bids
   const [currency, setCurrency] = useState<'USD' | 'AUD'>('USD');
 
   // Data from Firestore
@@ -73,8 +74,8 @@ export default function UploadPage() {
           return;
         }
         formData.append('supplierId', supplierId);
-        if (auctionDate) {
-          formData.append('auctionDate', auctionDate);
+        if (purchaseDate) {
+          formData.append('purchaseDate', purchaseDate);
         }
       }
 
@@ -234,16 +235,16 @@ export default function UploadPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Planned Auction Date (Optional)
+                  Purchase Date (Optional)
                 </label>
                 <input
                   type="date"
-                  value={auctionDate}
-                  onChange={(e) => setAuctionDate(e.target.value)}
+                  value={purchaseDate}
+                  onChange={(e) => setPurchaseDate(e.target.value)}
                   className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border"
                 />
                 <p className="mt-1 text-xs text-gray-500">
-                  When you plan to tender these devices to customers (optional)
+                  Date of bulk purchase from supplier (if different from individual device booking dates in the file)
                 </p>
               </div>
             </>
@@ -346,9 +347,9 @@ export default function UploadPage() {
             <>
               <li>Upload standardized trade-in files from suppliers (your purchase records)</li>
               <li>Expected columns: Date Booked, Model, Grade, Cost, Storage, Platform</li>
-              <li>Date Booked = Purchase date from supplier (when device was booked/acquired)</li>
+              <li>Date Booked = Individual device booking/acquisition date</li>
               <li>Cost should be in NZD (what you paid the supplier)</li>
-              <li>Select the supplier and optionally set a planned auction date for tendering to customers</li>
+              <li>Select the supplier and optionally the bulk purchase date</li>
             </>
           )}
           {activeTab === 'customer-bids' && (

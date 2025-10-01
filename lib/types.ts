@@ -45,8 +45,9 @@ export interface TradeIn {
   storageVariant?: string;
   grade: string;
   costNZD: number;
-  dateBooked: Date; // Date supplier recorded the trade-in
-  auctionDate?: Date; // Date we tender out the lot
+  dateBooked: Date; // Date supplier recorded the trade-in (from Excel)
+  purchaseDate?: Date; // Bulk purchase date from supplier (upload metadata)
+  auctionDate?: Date; // Date we tender out the lot to customers
   soldDate?: Date; // Date we award the lot
   platform: 'Android' | 'Apple';
   status: 'pending' | 'auction' | 'sold';
@@ -81,7 +82,8 @@ export interface FileUpload {
   fileUrl: string; // Firebase Storage URL
   supplierId?: string; // For trade-in files
   customerId?: string; // For customer bid files
-  auctionDate?: Date; // For auction-related files
+  purchaseDate?: Date; // For trade-in files (bulk purchase date)
+  auctionDate?: Date; // For customer bid files (auction date)
   recordsProcessed: number;
   status: 'processing' | 'completed' | 'failed';
   errorMessage?: string;

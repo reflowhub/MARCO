@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const supplierId = formData.get('supplierId') as string;
-    const auctionDate = formData.get('auctionDate') as string;
+    const purchaseDate = formData.get('purchaseDate') as string;
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
@@ -37,8 +37,8 @@ export async function POST(request: NextRequest) {
       batch.set(docRef, {
         ...tradeIn,
         id: docRef.id,
-        auctionDate: auctionDate ? new Date(auctionDate) : null,
-        status: auctionDate ? 'auction' : 'pending',
+        purchaseDate: purchaseDate ? new Date(purchaseDate) : null,
+        status: 'pending',
         createdAt: new Date(),
         updatedAt: new Date(),
       });
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
       uploadDate: new Date(),
       uploadedBy: 'system', // TODO: Get from auth
       supplierId,
-      auctionDate: auctionDate ? new Date(auctionDate) : null,
+      purchaseDate: purchaseDate ? new Date(purchaseDate) : null,
       recordsProcessed: tradeIns.length,
       status: 'completed',
       createdAt: new Date(),
