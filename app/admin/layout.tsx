@@ -51,6 +51,7 @@ export default function AdminLayout({
     { href: '/admin/customers', label: 'Customers' },
     { href: '/admin/model-library', label: 'Model Library' },
     { href: '/admin/trade-ins', label: 'Trade-Ins' },
+    { href: '/admin/trends', label: 'Trends' },
     { href: '/admin/bids', label: 'Customer Bids' },
     { href: '/admin/auctions', label: 'Auctions' },
   ];
