@@ -67,6 +67,7 @@ export async function POST(request: NextRequest) {
           id: docRef.id,
           currency,
           purchaseDate: purchaseDate ? new Date(purchaseDate) : null,
+          batchFileName: file.name, // Track original filename for lot grouping
           status: 'pending',
           createdAt: new Date(),
           updatedAt: new Date(),

@@ -48,6 +48,7 @@ export interface TradeIn {
   currency: Currency;
   dateBooked: Date; // Date supplier recorded the trade-in (from Excel)
   purchaseDate?: Date; // Bulk purchase date from supplier (upload metadata)
+  batchFileName?: string; // Original upload filename for lot tracking
   auctionDate?: Date; // Date we tender out the lot to customers
   soldDate?: Date; // Date we award the lot
   platform: 'Android' | 'Apple';

@@ -89,10 +89,12 @@ export async function parseTradeIns(file: File, supplierId: string): Promise<Par
         const dateBooked = row['Date Booked'] || row['Date_Booked'] || row['date_booked'] || row['Date'] || row['date'];
         const costValue = row['Cost'] || row['cost'] || row['Price'] || row['price'] || row['Cost (NZD)'] || row['cost_nzd'];
 
-        // Model can be in multiple fields
-        const modelValue = row['Model'] || row['model'] || row['Library_Model_Storage'];
+        // Model: prefer cleaned Library_Model_Storage over raw Model field
+        // Library_Model_Storage contains standardized names like "iPhone 12 Pro Max 256GB"
+        const modelValue = row['Library_Model_Storage'] || row['Model'] || row['model'];
 
         // Storage variant extraction
+        // For files with Library_Model_Storage, storage is already in the model name
         const storageVariant = row['Storage'] || row['storage'] || row['Storage Variant'];
 
         // Platform detection from multiple fields
