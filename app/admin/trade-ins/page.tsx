@@ -10,6 +10,9 @@ export default function TradeInsPage() {
   const [tradeIns, setTradeIns] = useState<TradeIn[]>([]);
   const [suppliers, setSuppliers] = useState<Record<string, Supplier>>({});
   const [loading, setLoading] = useState(true);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Filters
   const [platformFilter, setPlatformFilter] = useState<'all' | 'Android' | 'Apple'>('all');
@@ -51,6 +54,51 @@ export default function TradeInsPage() {
     }
   };
 
+  const handleToggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const handleToggleAll = () => {
+    if (selectedIds.size === filteredTradeIns.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredTradeIns.map((t) => t.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    setDeleting(true);
+    try {
+      const response = await fetch('/api/trade-ins/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedIds) }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete trade-ins');
+      }
+
+      // Reload data
+      await loadData();
+      setSelectedIds(new Set());
+      setShowDeleteConfirm(false);
+    } catch (error) {
+      console.error('Error deleting trade-ins:', error);
+      alert('Failed to delete trade-ins. Please try again.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const filteredTradeIns = tradeIns.filter((tradeIn) => {
     if (platformFilter !== 'all' && tradeIn.platform !== platformFilter) return false;
     if (statusFilter !== 'all' && tradeIn.status !== statusFilter) return false;
@@ -79,7 +127,18 @@ export default function TradeInsPage() {
 
   return (
     <div className="max-w-7xl mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-6">Trade-Ins</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Trade-Ins</h1>
+        {selectedIds.size > 0 && (
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            disabled={deleting}
+            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Delete Selected ({selectedIds.size})
+          </button>
+        )}
+      </div>
 
       {/* Summary Stats */}
       <div className="grid grid-cols-4 gap-4 mb-6">
@@ -174,6 +233,14 @@ export default function TradeInsPage() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
+                <th className="px-4 py-3 text-left w-12">
+                  <input
+                    type="checkbox"
+                    checked={filteredTradeIns.length > 0 && selectedIds.size === filteredTradeIns.length}
+                    onChange={handleToggleAll}
+                    className="rounded border-gray-300"
+                  />
+                </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date Booked</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Model</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Storage</th>
@@ -188,6 +255,14 @@ export default function TradeInsPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredTradeIns.map((tradeIn) => (
                 <tr key={tradeIn.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(tradeIn.id)}
+                      onChange={() => handleToggleSelect(tradeIn.id)}
+                      className="rounded border-gray-300"
+                    />
+                  </td>
                   <td className="px-4 py-3 text-sm text-gray-900">
                     {tradeIn.dateBooked ? new Date(tradeIn.dateBooked).toLocaleDateString() : '-'}
                   </td>
@@ -236,6 +311,34 @@ export default function TradeInsPage() {
           <div className="text-center py-8 text-gray-500">No trade-ins found matching your filters.</div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">Confirm Deletion</h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete {selectedIds.size} trade-in{selectedIds.size > 1 ? 's' : ''}? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleting}
+                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                disabled={deleting}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
