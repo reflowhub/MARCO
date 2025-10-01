@@ -60,7 +60,9 @@ export async function POST(request: NextRequest) {
 
       chunk.forEach((tradeIn) => {
         const docRef = tradeInsRef.doc();
-        batch.set(docRef, {
+
+        // Remove undefined values to satisfy Firestore
+        const cleanedTradeIn: any = {
           ...tradeIn,
           id: docRef.id,
           currency,
@@ -68,7 +70,16 @@ export async function POST(request: NextRequest) {
           status: 'pending',
           createdAt: new Date(),
           updatedAt: new Date(),
+        };
+
+        // Remove undefined fields
+        Object.keys(cleanedTradeIn).forEach(key => {
+          if (cleanedTradeIn[key] === undefined) {
+            delete cleanedTradeIn[key];
+          }
         });
+
+        batch.set(docRef, cleanedTradeIn);
       });
 
       await batch.commit();
