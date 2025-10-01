@@ -3,13 +3,27 @@ import { adminDb } from '@/lib/firebase-admin';
 import { parseTradeIns } from '@/lib/excel-parser';
 import { COLLECTIONS } from '@/lib/firebase-collections';
 
+// Use Node.js runtime for Firebase Admin
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
+    console.log('Trade-ins upload route called');
+
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const supplierId = formData.get('supplierId') as string;
     const purchaseDate = formData.get('purchaseDate') as string;
     const currency = formData.get('currency') as string;
+
+    console.log('Upload params:', {
+      fileName: file?.name,
+      fileSize: file?.size,
+      supplierId,
+      currency,
+      hasPurchaseDate: !!purchaseDate
+    });
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
@@ -24,7 +38,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Parse the Excel file
+    console.log('Starting Excel parsing...');
     const { tradeIns, errors } = await parseTradeIns(file, supplierId);
+    console.log(`Parsing complete: ${tradeIns.length} devices, ${errors.length} errors`);
 
     if (errors.length > 0) {
       return NextResponse.json(
