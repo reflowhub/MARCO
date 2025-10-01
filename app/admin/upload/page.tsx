@@ -1,6 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { COLLECTIONS } from '@/lib/firebase-collections';
+import { Supplier, Customer } from '@/lib/types';
 
 type UploadType = 'model-library' | 'trade-ins' | 'customer-bids';
 
@@ -15,6 +19,35 @@ export default function UploadPage() {
   const [customerId, setCustomerId] = useState('');
   const [auctionDate, setAuctionDate] = useState('');
   const [currency, setCurrency] = useState<'USD' | 'AUD'>('USD');
+
+  // Data from Firestore
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loadingData, setLoadingData] = useState(true);
+
+  useEffect(() => {
+    loadSuppliersAndCustomers();
+  }, []);
+
+  const loadSuppliersAndCustomers = async () => {
+    try {
+      const [suppliersSnapshot, customersSnapshot] = await Promise.all([
+        getDocs(collection(db, COLLECTIONS.SUPPLIERS)),
+        getDocs(collection(db, COLLECTIONS.CUSTOMERS)),
+      ]);
+
+      setSuppliers(
+        suppliersSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) as Supplier[]
+      );
+      setCustomers(
+        customersSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) as Customer[]
+      );
+    } catch (error) {
+      console.error('Error loading suppliers/customers:', error);
+    } finally {
+      setLoadingData(false);
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -184,11 +217,20 @@ export default function UploadPage() {
                   value={supplierId}
                   onChange={(e) => setSupplierId(e.target.value)}
                   className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border"
+                  disabled={loadingData}
                 >
                   <option value="">Select Supplier</option>
-                  {/* TODO: Load suppliers from Firestore */}
-                  <option value="supplier-1">NZ Channel Partner</option>
+                  {suppliers.map((supplier) => (
+                    <option key={supplier.id} value={supplier.id}>
+                      {supplier.name} ({supplier.country})
+                    </option>
+                  ))}
                 </select>
+                {suppliers.length === 0 && !loadingData && (
+                  <p className="mt-1 text-sm text-red-600">
+                    No suppliers found. Please add a supplier first.
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -215,11 +257,20 @@ export default function UploadPage() {
                   value={customerId}
                   onChange={(e) => setCustomerId(e.target.value)}
                   className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border"
+                  disabled={loadingData}
                 >
                   <option value="">Select Customer</option>
-                  {/* TODO: Load customers from Firestore */}
-                  <option value="customer-1">Customer A</option>
+                  {customers.map((customer) => (
+                    <option key={customer.id} value={customer.id}>
+                      {customer.name} ({customer.country})
+                    </option>
+                  ))}
                 </select>
+                {customers.length === 0 && !loadingData && (
+                  <p className="mt-1 text-sm text-red-600">
+                    No customers found. Please add a customer first.
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
