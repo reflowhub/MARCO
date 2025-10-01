@@ -51,6 +51,9 @@ export interface TradeIn {
   batchFileName?: string; // Original upload filename for lot tracking
   auctionDate?: Date; // Date we tender out the lot to customers
   soldDate?: Date; // Date we award the lot
+  soldPrice?: number; // Price sold to customer
+  soldCurrency?: Currency; // Currency of sale
+  customerId?: string; // Customer who purchased
   platform: 'Android' | 'Apple';
   status: 'pending' | 'auction' | 'sold';
   notes?: string;

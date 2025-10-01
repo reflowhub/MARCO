@@ -11,6 +11,9 @@ export default function DashboardPage() {
   const [stats, setStats] = useState({
     totalDevices: 0,
     totalCost: 0,
+    totalRevenue: 0,
+    totalProfit: 0,
+    averageMarginPercent: 0,
     pendingDevices: 0,
     auctionDevices: 0,
     soldDevices: 0,
@@ -84,9 +87,25 @@ export default function DashboardPage() {
           ? Math.round(auctionToSold.reduce((a, b) => a + b, 0) / auctionToSold.length)
           : 0;
 
+      // Calculate margin statistics (only for sold items with same currency)
+      const soldWithMargins = tradeIns.filter(
+        (t) => t.status === 'sold' && t.soldPrice && t.soldCurrency === t.currency
+      );
+
+      const totalRevenue = soldWithMargins.reduce((sum, t) => sum + (t.soldPrice || 0), 0);
+      const totalCostSold = soldWithMargins.reduce((sum, t) => sum + t.cost, 0);
+      const totalProfit = totalRevenue - totalCostSold;
+      const averageMarginPercent =
+        soldWithMargins.length > 0
+          ? (totalProfit / totalCostSold) * 100
+          : 0;
+
       setStats({
         totalDevices: tradeIns.length,
         totalCost,
+        totalRevenue,
+        totalProfit,
+        averageMarginPercent,
         pendingDevices,
         auctionDevices,
         soldDevices,
@@ -130,17 +149,21 @@ export default function DashboardPage() {
         </div>
 
         <div className="bg-white p-6 rounded-lg shadow">
-          <div className="text-sm text-gray-600 mb-1">Customer Bids</div>
-          <div className="text-3xl font-bold text-gray-900">{stats.totalBids}</div>
-          <div className="text-xs text-gray-500 mt-2">Total bid submissions</div>
+          <div className="text-sm text-gray-600 mb-1">Total Profit</div>
+          <div className={`text-3xl font-bold ${stats.totalProfit > 0 ? 'text-green-600' : 'text-red-600'}`}>
+            ${stats.totalProfit.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+          </div>
+          <div className="text-xs text-gray-500 mt-2">
+            {stats.averageMarginPercent > 0 ? stats.averageMarginPercent.toFixed(1) : 0}% avg margin
+          </div>
         </div>
 
         <div className="bg-white p-6 rounded-lg shadow">
-          <div className="text-sm text-gray-600 mb-1">Avg Lead Time</div>
+          <div className="text-sm text-gray-600 mb-1">Total Revenue</div>
           <div className="text-3xl font-bold text-gray-900">
-            {stats.averageLeadTimeBookedToAuction + stats.averageLeadTimeAuctionToSold}
+            ${stats.totalRevenue.toLocaleString('en-US', { maximumFractionDigits: 0 })}
           </div>
-          <div className="text-xs text-gray-500 mt-2">days (total)</div>
+          <div className="text-xs text-gray-500 mt-2">From sold devices</div>
         </div>
       </div>
 

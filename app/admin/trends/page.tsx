@@ -20,6 +20,7 @@ interface ModelGradeTrend {
     supplierId: string;
   }[];
   totalVolume: number;
+  soldVolume: number;
   averagePrice: number;
   minPrice: number;
   maxPrice: number;
@@ -27,6 +28,9 @@ interface ModelGradeTrend {
   priceVariance: number;
   priceChange: number; // Change from first to last batch
   priceChangePercent: number;
+  averageSoldPrice: number;
+  averageMargin: number;
+  averageMarginPercent: number;
 }
 
 export default function TrendsPage() {
@@ -92,6 +96,7 @@ export default function TrendsPage() {
           platform: tradeIn.platform,
           batches: [],
           totalVolume: 0,
+          soldVolume: 0,
           averagePrice: 0,
           minPrice: Infinity,
           maxPrice: -Infinity,
@@ -99,6 +104,9 @@ export default function TrendsPage() {
           priceVariance: 0,
           priceChange: 0,
           priceChangePercent: 0,
+          averageSoldPrice: 0,
+          averageMargin: 0,
+          averageMarginPercent: 0,
         });
       }
 
@@ -147,6 +155,31 @@ export default function TrendsPage() {
       const lastPrice = prices[prices.length - 1];
       trend.priceChange = lastPrice - firstPrice;
       trend.priceChangePercent = ((lastPrice - firstPrice) / firstPrice) * 100;
+
+      // Calculate margin statistics from sold items
+      const soldItems = tradeIns.filter(
+        (t) =>
+          t.deviceModel === trend.deviceModel &&
+          t.grade === trend.grade &&
+          t.soldPrice &&
+          t.soldCurrency === t.currency // Only calculate margin if same currency
+      );
+
+      trend.soldVolume = soldItems.length;
+
+      if (soldItems.length > 0) {
+        const totalSoldPrice = soldItems.reduce((sum, t) => sum + (t.soldPrice || 0), 0);
+        trend.averageSoldPrice = totalSoldPrice / soldItems.length;
+
+        const totalMargin = soldItems.reduce((sum, t) => sum + ((t.soldPrice || 0) - t.cost), 0);
+        trend.averageMargin = totalMargin / soldItems.length;
+
+        const totalMarginPercent = soldItems.reduce(
+          (sum, t) => sum + (((t.soldPrice || 0) - t.cost) / t.cost) * 100,
+          0
+        );
+        trend.averageMarginPercent = totalMarginPercent / soldItems.length;
+      }
     });
 
     return Array.from(trendMap.values());
@@ -345,25 +378,22 @@ export default function TrendsPage() {
                   className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('volume')}
                 >
-                  Total Volume {sortBy === 'volume' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  Volume {sortBy === 'volume' && (sortDirection === 'asc' ? '↑' : '↓')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Batches
+                  Avg Cost
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Avg Price
+                  Avg Sold
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Min / Max
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Current
+                  Avg Margin
                 </th>
                 <th
                   className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('priceChange')}
                 >
-                  Price Change {sortBy === 'priceChange' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  Cost Δ {sortBy === 'priceChange' && (sortDirection === 'asc' ? '↑' : '↓')}
                 </th>
                 <th
                   className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
@@ -393,16 +423,33 @@ export default function TrendsPage() {
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-900 font-semibold">
                     {trend.totalVolume}
+                    {trend.soldVolume > 0 && (
+                      <div className="text-xs text-green-600">{trend.soldVolume} sold</div>
+                    )}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">{trend.batches.length}</td>
                   <td className="px-4 py-3 text-sm text-gray-900">
                     ${trend.averagePrice.toFixed(2)}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">
-                    ${trend.minPrice.toFixed(2)} / ${trend.maxPrice.toFixed(2)}
+                  <td className="px-4 py-3 text-sm text-gray-900">
+                    {trend.soldVolume > 0 ? (
+                      <>${trend.averageSoldPrice.toFixed(2)}</>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-900 font-semibold">
-                    ${trend.currentPrice.toFixed(2)}
+                  <td className="px-4 py-3 text-sm font-semibold">
+                    {trend.soldVolume > 0 ? (
+                      <>
+                        <span className={trend.averageMargin > 0 ? 'text-green-600' : 'text-red-600'}>
+                          ${trend.averageMargin.toFixed(2)}
+                        </span>
+                        <div className="text-xs text-gray-500">
+                          {trend.averageMarginPercent.toFixed(1)}%
+                        </div>
+                      </>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-sm">
                     <span

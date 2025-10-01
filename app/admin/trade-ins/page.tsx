@@ -274,13 +274,13 @@ export default function TradeInsPage() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Batch File</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date Booked</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Model</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Storage</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Grade</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Platform</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cost</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sold Price</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Margin</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Supplier</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Auction Date</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -301,7 +301,6 @@ export default function TradeInsPage() {
                     {tradeIn.dateBooked ? new Date(tradeIn.dateBooked).toLocaleDateString() : '-'}
                   </td>
                   <td className="px-4 py-3 text-sm font-medium text-gray-900">{tradeIn.deviceModel}</td>
-                  <td className="px-4 py-3 text-sm text-gray-500">{tradeIn.storageVariant || '-'}</td>
                   <td className="px-4 py-3 text-sm text-gray-500">{tradeIn.grade}</td>
                   <td className="px-4 py-3 text-sm text-gray-500">
                     <span
@@ -316,6 +315,31 @@ export default function TradeInsPage() {
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-900">
                     ${tradeIn.cost.toFixed(2)} {tradeIn.currency}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-900">
+                    {tradeIn.soldPrice ? (
+                      <>
+                        ${tradeIn.soldPrice.toFixed(2)} {tradeIn.soldCurrency}
+                      </>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-sm font-semibold">
+                    {tradeIn.soldPrice && tradeIn.soldCurrency === tradeIn.currency ? (
+                      <>
+                        <span className={tradeIn.soldPrice > tradeIn.cost ? 'text-green-600' : 'text-red-600'}>
+                          ${(tradeIn.soldPrice - tradeIn.cost).toFixed(2)}
+                        </span>
+                        <div className="text-xs text-gray-500">
+                          {(((tradeIn.soldPrice - tradeIn.cost) / tradeIn.cost) * 100).toFixed(1)}%
+                        </div>
+                      </>
+                    ) : tradeIn.soldPrice && tradeIn.soldCurrency !== tradeIn.currency ? (
+                      <span className="text-xs text-gray-400">Mixed curr.</span>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-500">
                     {suppliers[tradeIn.supplierId]?.name || 'Unknown'}
@@ -332,9 +356,6 @@ export default function TradeInsPage() {
                     >
                       {tradeIn.status}
                     </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">
-                    {tradeIn.auctionDate ? new Date(tradeIn.auctionDate).toLocaleDateString() : '-'}
                   </td>
                 </tr>
               ))}
