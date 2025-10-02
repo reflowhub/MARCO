@@ -274,6 +274,7 @@ export default function TradeInsPage() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Batch File</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date Booked</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Model</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">IMEI</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Grade</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Platform</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cost</th>
@@ -301,6 +302,9 @@ export default function TradeInsPage() {
                     {tradeIn.dateBooked ? new Date(tradeIn.dateBooked).toLocaleDateString() : '-'}
                   </td>
                   <td className="px-4 py-3 text-sm font-medium text-gray-900">{tradeIn.deviceModel}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600 font-mono text-xs">
+                    {tradeIn.imei || '-'}
+                  </td>
                   <td className="px-4 py-3 text-sm text-gray-500">{tradeIn.grade}</td>
                   <td className="px-4 py-3 text-sm text-gray-500">
                     <span

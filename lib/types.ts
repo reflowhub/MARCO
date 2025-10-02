@@ -43,6 +43,7 @@ export interface TradeIn {
   supplierId: string;
   deviceModel: string;
   storageVariant?: string;
+  imei?: string; // Device IMEI number
   grade: string;
   cost: number;
   currency: Currency;

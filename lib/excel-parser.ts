@@ -97,6 +97,9 @@ export async function parseTradeIns(file: File, supplierId: string): Promise<Par
         // For files with Library_Model_Storage, storage is already in the model name
         const storageVariant = row['Storage'] || row['storage'] || row['Storage Variant'];
 
+        // IMEI extraction
+        const imei = row['IMEI'] || row['imei'] || row['Imei'] || row['Serial'] || row['serial'];
+
         // Platform detection from multiple fields
         let platform: 'Android' | 'Apple' = 'Android';
         const platformField = row['Platform'] || row['platform'];
@@ -115,6 +118,7 @@ export async function parseTradeIns(file: File, supplierId: string): Promise<Par
           supplierId,
           deviceModel: modelValue,
           storageVariant,
+          imei: imei ? String(imei) : undefined,
           grade: row['Grade'] || row['grade'],
           cost: parseFloat(costValue),
           dateBooked: parseExcelDate(dateBooked),
