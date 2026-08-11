@@ -5,6 +5,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { getActivePriceList, getCategoryGrades } from "@/lib/categories";
 import { readGrades } from "@/lib/grades";
 import { calculatePartnerRate } from "@/lib/partner-pricing";
+import { getTodayFXRate, convertPrice } from "@/lib/fx";
 
 // ---------------------------------------------------------------------------
 // GET /api/v1/devices/[id]/price — Full grade pricing for one device
@@ -68,14 +69,20 @@ export async function GET(
 
     const allGrades = readGrades(priceDoc.data()!);
     const discount = partner.partnerRateDiscount ?? 10;
+    const currency = partner.currency ?? "NZD";
+    const fxRates = currency !== "NZD" ? await getTodayFXRate() : null;
+    const fxRate = fxRates?.NZD_AUD ?? 1;
 
-    const grades: Record<string, { publicPriceNZD: number; partnerPriceNZD: number } | null> = {};
+    const grades: Record<string, { publicPriceNZD: number; partnerPriceNZD: number; publicPrice: number; partnerPrice: number } | null> = {};
     for (const g of categoryGrades) {
       const raw = allGrades[g.key];
       if (raw !== undefined && raw !== null) {
+        const partnerNZD = calculatePartnerRate(raw, discount);
         grades[g.key] = {
           publicPriceNZD: raw,
-          partnerPriceNZD: calculatePartnerRate(raw, discount),
+          partnerPriceNZD: partnerNZD,
+          publicPrice: convertPrice(raw, currency, fxRate),
+          partnerPrice: convertPrice(partnerNZD, currency, fxRate),
         };
       } else {
         grades[g.key] = null;
@@ -89,6 +96,7 @@ export async function GET(
       storage: deviceData.storage,
       category,
       grades,
+      displayCurrency: currency,
       partnerRateDiscount: discount,
     });
   } catch (error) {

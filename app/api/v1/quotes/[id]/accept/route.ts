@@ -223,6 +223,8 @@ export async function PUT(
       grade: updatedData.grade,
       quotePriceNZD: updatedData.quotePriceNZD,
       publicPriceNZD: updatedData.publicPriceNZD ?? null,
+      quotePrice: updatedData.quotePriceDisplay ?? updatedData.quotePriceNZD,
+      displayCurrency: updatedData.displayCurrency ?? "NZD",
       status: updatedData.status,
       source: updatedData.source ?? null,
       customerName: updatedData.customerName,

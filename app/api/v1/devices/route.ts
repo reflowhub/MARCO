@@ -4,6 +4,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { getDevices, getPrices } from "@/lib/device-cache";
 import { getActivePriceList, getCategoryGrades, loadCategories } from "@/lib/categories";
 import { calculatePartnerRate } from "@/lib/partner-pricing";
+import { getTodayFXRate, convertPrice } from "@/lib/fx";
 
 // ---------------------------------------------------------------------------
 // GET /api/v1/devices — Search/list devices with partner pricing
@@ -75,16 +76,26 @@ export async function GET(request: NextRequest) {
     }
 
     const discount = partner.partnerRateDiscount ?? 10;
+    const currency = partner.currency ?? "NZD";
+    const fxRates = currency !== "NZD" ? await getTodayFXRate() : null;
+    const fxRate = fxRates?.NZD_AUD ?? 1;
 
     const devices = paged.map((d) => {
       const categoryPrices = priceMaps.get(d.category);
       const devicePrices = categoryPrices?.get(d.id) ?? {};
 
-      const adjustedGrades: Record<string, number | null> = {};
+      const adjustedGrades: Record<string, { partnerPriceNZD: number; partnerPrice: number } | null> = {};
       for (const g of grades) {
         const raw = devicePrices[g.key] ?? null;
-        adjustedGrades[g.key] =
-          raw != null ? calculatePartnerRate(raw, discount) : null;
+        if (raw != null) {
+          const partnerNZD = calculatePartnerRate(raw, discount);
+          adjustedGrades[g.key] = {
+            partnerPriceNZD: partnerNZD,
+            partnerPrice: convertPrice(partnerNZD, currency, fxRate),
+          };
+        } else {
+          adjustedGrades[g.key] = null;
+        }
       }
 
       return {
@@ -97,7 +108,7 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return NextResponse.json({ devices, grades, total, limit, offset });
+    return NextResponse.json({ devices, grades, total, limit, offset, displayCurrency: currency });
   } catch (error) {
     console.error("Error in v1 devices:", error);
     return NextResponse.json(

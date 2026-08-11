@@ -7,6 +7,7 @@ import { calculatePartnerRate } from "@/lib/partner-pricing";
 import { readGrades } from "@/lib/grades";
 import { getActivePriceList, getCategoryGrades } from "@/lib/categories";
 import { parsePlatform } from "@/lib/parse-platform";
+import { getTodayFXRate, convertPrice } from "@/lib/fx";
 
 // ---------------------------------------------------------------------------
 // POST /api/v1/quotes — Create a single-device quote at partner rate
@@ -107,6 +108,13 @@ export async function POST(request: NextRequest) {
       discount
     );
 
+    // FX conversion
+    const currency = partner.currency ?? "NZD";
+    const fxRates = currency !== "NZD" ? await getTodayFXRate() : null;
+    const fxRate = fxRates?.NZD_AUD ?? 1;
+    const quotePriceDisplay = convertPrice(partnerPriceNZD, currency, fxRate);
+    const publicPriceDisplay = convertPrice(Number(publicPriceNZD), currency, fxRate);
+
     // Calculate expiry (14 days)
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
@@ -123,8 +131,9 @@ export async function POST(request: NextRequest) {
       grade: normalizedGrade,
       quotePriceNZD: partnerPriceNZD,
       publicPriceNZD: Number(publicPriceNZD),
-      displayCurrency: "NZD",
-      fxRate: 1,
+      displayCurrency: currency,
+      fxRate,
+      quotePriceDisplay,
       status: "quoted",
       partnerId: partner.id,
       partnerMode: "B",
@@ -152,7 +161,9 @@ export async function POST(request: NextRequest) {
         grade: normalizedGrade,
         quotePriceNZD: partnerPriceNZD,
         publicPriceNZD: Number(publicPriceNZD),
-        displayCurrency: "NZD",
+        quotePrice: quotePriceDisplay,
+        publicPrice: publicPriceDisplay,
+        displayCurrency: currency,
         partnerRateDiscount: discount,
         status: "quoted",
         source: "api",

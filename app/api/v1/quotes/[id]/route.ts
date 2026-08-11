@@ -66,6 +66,7 @@ export async function GET(
       grade: quoteData.grade,
       quotePriceNZD: quoteData.quotePriceNZD,
       publicPriceNZD: quoteData.publicPriceNZD ?? null,
+      quotePrice: quoteData.quotePriceDisplay ?? quoteData.quotePriceNZD,
       displayCurrency: quoteData.displayCurrency ?? "NZD",
       partnerRateDiscount: quoteData.partnerRateDiscount ?? null,
       status: quoteData.status,

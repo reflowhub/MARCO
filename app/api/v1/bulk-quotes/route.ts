@@ -7,6 +7,7 @@ import { matchDeviceString, loadDeviceLibrary } from "@/lib/matching";
 import { calculatePartnerRate } from "@/lib/partner-pricing";
 import { readGrades } from "@/lib/grades";
 import { getActivePriceList, getCategoryGrades } from "@/lib/categories";
+import { getTodayFXRate, convertPrice } from "@/lib/fx";
 
 // ---------------------------------------------------------------------------
 // CSV parser (same as app/api/partner/estimate/route.ts)
@@ -270,6 +271,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // FX conversion
+    const currency = partner.currency ?? "NZD";
+    const fxRates = currency !== "NZD" ? await getTodayFXRate() : null;
+    const fxRate = fxRates?.NZD_AUD ?? 1;
+    const totalIndicativeDisplay = convertPrice(totalIndicativeNZD, currency, fxRate);
+    const totalPublicDisplay = convertPrice(totalPublicNZD, currency, fxRate);
+
     // Create bulk quote document
     const bulkQuoteData: Record<string, unknown> = {
       type: isDirectDevices ? "buildList" : "manifest",
@@ -278,6 +286,10 @@ export async function POST(request: NextRequest) {
       totalDevices: deviceLines.reduce((sum, d) => sum + d.quantity, 0),
       totalIndicativeNZD,
       totalPublicNZD,
+      totalIndicativeDisplay,
+      totalPublicDisplay,
+      displayCurrency: currency,
+      fxRate,
       matchedCount,
       unmatchedCount,
       status: "estimated",
@@ -309,6 +321,8 @@ export async function POST(request: NextRequest) {
           assumedGrade: line.assumedGrade,
           indicativePriceNZD: line.indicativePriceNZD,
           publicPriceNZD: line.publicPriceNZD,
+          indicativePrice: convertPrice(line.indicativePriceNZD, currency, fxRate),
+          publicPrice: convertPrice(line.publicPriceNZD, currency, fxRate),
         });
       });
       await batch.commit();
@@ -319,6 +333,8 @@ export async function POST(request: NextRequest) {
         id: bulkQuoteRef.id,
         totalDevices: bulkQuoteData.totalDevices,
         totalIndicativeNZD,
+        totalIndicative: totalIndicativeDisplay,
+        displayCurrency: currency,
         matchedCount,
         unmatchedCount,
         lineCount: deviceLines.length,
