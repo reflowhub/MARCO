@@ -43,6 +43,8 @@ import {
   Copy,
   Check,
   Code2,
+  Trash2,
+  Key,
 } from "lucide-react";
 import { useFX } from "@/lib/use-fx";
 
@@ -95,6 +97,15 @@ interface PayoutItem {
   paymentMethod: string | null;
   ledgerEntryCount: number;
   createdAt: string | null;
+}
+
+interface ApiKey {
+  id: string;
+  keyPrefix: string;
+  label: string;
+  status: "active" | "revoked";
+  createdAt: string | null;
+  lastUsedAt: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -176,6 +187,17 @@ export default function PartnerDetailPage() {
     widgetCustomHeading: "",
   });
 
+  // ---- api keys state
+  const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
+  const [apiKeysLoading, setApiKeysLoading] = useState(false);
+  const [generateKeyOpen, setGenerateKeyOpen] = useState(false);
+  const [generateKeyLoading, setGenerateKeyLoading] = useState(false);
+  const [newKeyLabel, setNewKeyLabel] = useState("");
+  const [generatedApiKey, setGeneratedApiKey] = useState<string | null>(null);
+  const [apiKeyCopied, setApiKeyCopied] = useState(false);
+  const [revokeKeyId, setRevokeKeyId] = useState<string | null>(null);
+  const [revokeKeyLoading, setRevokeKeyLoading] = useState(false);
+
   // ---- fetch partner
   const fetchPartner = useCallback(() => {
     if (!id) return;
@@ -211,6 +233,67 @@ export default function PartnerDetailPage() {
   useEffect(() => {
     fetchPayouts();
   }, [fetchPayouts]);
+
+  // ---- fetch api keys
+  const fetchApiKeys = useCallback(() => {
+    if (!id) return;
+    setApiKeysLoading(true);
+    fetch(`/api/admin/partners/${id}/api-keys`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) setApiKeys(data);
+      })
+      .catch(console.error)
+      .finally(() => setApiKeysLoading(false));
+  }, [id]);
+
+  useEffect(() => {
+    fetchApiKeys();
+  }, [fetchApiKeys]);
+
+  // ---- generate api key
+  const handleGenerateApiKey = async () => {
+    setGenerateKeyLoading(true);
+    try {
+      const res = await fetch(`/api/admin/partners/${id}/api-keys`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label: newKeyLabel.trim() || "Default" }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setGeneratedApiKey(data.key);
+      fetchApiKeys();
+    } catch {
+      // silently fail
+    } finally {
+      setGenerateKeyLoading(false);
+    }
+  };
+
+  // ---- revoke api key
+  const handleRevokeApiKey = async () => {
+    if (!revokeKeyId) return;
+    setRevokeKeyLoading(true);
+    try {
+      await fetch(`/api/admin/partners/${id}/api-keys/${revokeKeyId}`, {
+        method: "DELETE",
+      });
+      setRevokeKeyId(null);
+      fetchApiKeys();
+    } catch {
+      // silently fail
+    } finally {
+      setRevokeKeyLoading(false);
+    }
+  };
+
+  const copyApiKey = () => {
+    if (!generatedApiKey) return;
+    navigator.clipboard.writeText(generatedApiKey);
+    setApiKeyCopied(true);
+    setTimeout(() => setApiKeyCopied(false), 2000);
+  };
 
   // ---- create payout
   const handleCreatePayout = async () => {
@@ -777,6 +860,81 @@ export default function PartnerDetailPage() {
             )}
           </div>
         )}
+        {/* API Access Card */}
+        {partner.modes.includes("B") && (
+          <div className="rounded-lg border border-border bg-card p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Key className="h-5 w-5 text-muted-foreground" />
+                <h2 className="text-lg font-semibold">API Access</h2>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setNewKeyLabel("");
+                  setGeneratedApiKey(null);
+                  setApiKeyCopied(false);
+                  setGenerateKeyOpen(true);
+                }}
+              >
+                <Key className="mr-1 h-3 w-3" />
+                Generate Key
+              </Button>
+            </div>
+
+            {apiKeysLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              </div>
+            ) : apiKeys.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No API keys generated yet.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {apiKeys.map((key) => (
+                  <div
+                    key={key.id}
+                    className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="font-mono text-xs shrink-0">
+                        {key.keyPrefix}...
+                      </span>
+                      <span className="text-muted-foreground truncate">
+                        {key.label}
+                      </span>
+                      <Badge
+                        variant={key.status === "active" ? "default" : "secondary"}
+                        className="text-xs shrink-0"
+                      >
+                        {key.status}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 ml-2">
+                      {key.lastUsedAt && (
+                        <span className="text-xs text-muted-foreground hidden sm:inline">
+                          Used {formatDate(key.lastUsedAt)}
+                        </span>
+                      )}
+                      {key.status === "active" && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive hover:text-destructive"
+                          onClick={() => setRevokeKeyId(key.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Payouts Section (Mode A) */}
@@ -1323,6 +1481,112 @@ export default function PartnerDetailPage() {
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
               Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Generate API Key Dialog */}
+      <Dialog open={generateKeyOpen} onOpenChange={setGenerateKeyOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Generate API Key</DialogTitle>
+            <DialogDescription>
+              {generatedApiKey
+                ? "Copy this key now. It will not be shown again."
+                : `Create a new API key for ${partner.name}.`}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4">
+            {generatedApiKey ? (
+              <div className="space-y-2">
+                <Label>API Key</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    readOnly
+                    value={generatedApiKey}
+                    className="font-mono text-xs"
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={copyApiKey}
+                    className="shrink-0"
+                  >
+                    {apiKeyCopied ? (
+                      <Check className="h-4 w-4 text-emerald-600" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Store this key securely. It cannot be retrieved later.
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-2">
+                <Label htmlFor="key-label">Label (optional)</Label>
+                <Input
+                  id="key-label"
+                  placeholder="e.g. Production, Staging"
+                  value={newKeyLabel}
+                  onChange={(e) => setNewKeyLabel(e.target.value)}
+                />
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setGenerateKeyOpen(false)}
+            >
+              {generatedApiKey ? "Close" : "Cancel"}
+            </Button>
+            {!generatedApiKey && (
+              <Button
+                onClick={handleGenerateApiKey}
+                disabled={generateKeyLoading}
+              >
+                {generateKeyLoading && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Generate
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Revoke API Key Dialog */}
+      <Dialog open={!!revokeKeyId} onOpenChange={() => setRevokeKeyId(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Revoke API Key</DialogTitle>
+            <DialogDescription>
+              This key will be immediately deactivated. Any requests using it
+              will return 401 Unauthorized.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setRevokeKeyId(null)}
+              disabled={revokeKeyLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleRevokeApiKey}
+              disabled={revokeKeyLoading}
+            >
+              {revokeKeyLoading && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Revoke
             </Button>
           </DialogFooter>
         </DialogContent>
