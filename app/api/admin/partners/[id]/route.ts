@@ -81,6 +81,11 @@ export async function GET(
       address: data.address ?? null,
       companyName: data.companyName ?? null,
       companyRegistrationNumber: data.companyRegistrationNumber ?? null,
+      // Widget
+      widgetEnabled: data.widgetEnabled ?? false,
+      widgetPrimaryColor: data.widgetPrimaryColor ?? null,
+      widgetLogoUrl: data.widgetLogoUrl ?? null,
+      widgetCustomHeading: data.widgetCustomHeading ?? null,
       // Summary
       commissionSummary,
       // Timestamps
@@ -185,6 +190,12 @@ export async function PUT(
       updateData.currency = body.currency === "NZD" ? "NZD" : "AUD";
     }
 
+    // Widget fields
+    if (body.widgetEnabled !== undefined) updateData.widgetEnabled = !!body.widgetEnabled;
+    if (body.widgetPrimaryColor !== undefined) updateData.widgetPrimaryColor = body.widgetPrimaryColor?.trim() || null;
+    if (body.widgetLogoUrl !== undefined) updateData.widgetLogoUrl = body.widgetLogoUrl?.trim() || null;
+    if (body.widgetCustomHeading !== undefined) updateData.widgetCustomHeading = body.widgetCustomHeading?.trim() || null;
+
     // Contact fields
     if (body.contactPerson !== undefined) updateData.contactPerson = body.contactPerson?.trim() || null;
     if (body.contactPhone !== undefined) updateData.contactPhone = body.contactPhone?.trim() || null;
@@ -227,6 +238,10 @@ export async function PUT(
       address: updatedData.address ?? null,
       companyName: updatedData.companyName ?? null,
       companyRegistrationNumber: updatedData.companyRegistrationNumber ?? null,
+      widgetEnabled: updatedData.widgetEnabled ?? false,
+      widgetPrimaryColor: updatedData.widgetPrimaryColor ?? null,
+      widgetLogoUrl: updatedData.widgetLogoUrl ?? null,
+      widgetCustomHeading: updatedData.widgetCustomHeading ?? null,
       updatedAt: new Date().toISOString(),
     });
   } catch (error) {

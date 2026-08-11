@@ -42,6 +42,7 @@ import {
   KeyRound,
   Copy,
   Check,
+  Code2,
 } from "lucide-react";
 import { useFX } from "@/lib/use-fx";
 
@@ -69,6 +70,10 @@ interface Partner {
   address: string | null;
   companyName: string | null;
   companyRegistrationNumber: string | null;
+  widgetEnabled: boolean;
+  widgetPrimaryColor: string | null;
+  widgetLogoUrl: string | null;
+  widgetCustomHeading: string | null;
   paymentMethod: string | null;
   payIdPhone: string | null;
   bankBSB: string | null;
@@ -165,6 +170,10 @@ export default function PartnerDetailPage() {
     address: "",
     companyName: "",
     companyRegistrationNumber: "",
+    widgetEnabled: false,
+    widgetPrimaryColor: "",
+    widgetLogoUrl: "",
+    widgetCustomHeading: "",
   });
 
   // ---- fetch partner
@@ -279,6 +288,10 @@ export default function PartnerDetailPage() {
       address: partner.address ?? "",
       companyName: partner.companyName ?? "",
       companyRegistrationNumber: partner.companyRegistrationNumber ?? "",
+      widgetEnabled: partner.widgetEnabled ?? false,
+      widgetPrimaryColor: partner.widgetPrimaryColor ?? "",
+      widgetLogoUrl: partner.widgetLogoUrl ?? "",
+      widgetCustomHeading: partner.widgetCustomHeading ?? "",
     });
     setEditError(null);
     setEditOpen(true);
@@ -321,6 +334,10 @@ export default function PartnerDetailPage() {
           address: editForm.address.trim() || null,
           companyName: editForm.companyName.trim() || null,
           companyRegistrationNumber: editForm.companyRegistrationNumber.trim() || null,
+          widgetEnabled: editForm.widgetEnabled,
+          widgetPrimaryColor: editForm.widgetPrimaryColor.trim() || null,
+          widgetLogoUrl: editForm.widgetLogoUrl.trim() || null,
+          widgetCustomHeading: editForm.widgetCustomHeading.trim() || null,
         }),
       });
 
@@ -691,6 +708,73 @@ export default function PartnerDetailPage() {
                 </div>
               )}
             </dl>
+          </div>
+        )}
+        {/* Embed Widget Card */}
+        {partner.modes.includes("A") && (
+          <div className="rounded-lg border border-border bg-card p-6">
+            <div className="mb-4 flex items-center gap-2">
+              <Code2 className="h-5 w-5 text-muted-foreground" />
+              <h2 className="text-lg font-semibold">Embed Widget</h2>
+            </div>
+
+            <dl className="grid gap-3 text-sm">
+              <div className="flex justify-between">
+                <dt className="text-muted-foreground">Status</dt>
+                <dd>
+                  <Badge variant={partner.widgetEnabled ? "default" : "secondary"}>
+                    {partner.widgetEnabled ? "Enabled" : "Disabled"}
+                  </Badge>
+                </dd>
+              </div>
+              {partner.widgetPrimaryColor && (
+                <div className="flex items-center justify-between">
+                  <dt className="text-muted-foreground">Primary Color</dt>
+                  <dd className="flex items-center gap-2">
+                    <div
+                      className="h-5 w-5 rounded border"
+                      style={{ backgroundColor: partner.widgetPrimaryColor }}
+                    />
+                    <span className="font-mono text-xs">{partner.widgetPrimaryColor}</span>
+                  </dd>
+                </div>
+              )}
+              {partner.widgetLogoUrl && (
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">Logo</dt>
+                  <dd className="text-xs text-right max-w-[200px] truncate">{partner.widgetLogoUrl}</dd>
+                </div>
+              )}
+              {partner.widgetCustomHeading && (
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">Custom Heading</dt>
+                  <dd className="text-right max-w-[200px]">{partner.widgetCustomHeading}</dd>
+                </div>
+              )}
+            </dl>
+
+            {partner.widgetEnabled && (
+              <div className="mt-4 space-y-2">
+                <Label className="text-muted-foreground">Embed Code</Label>
+                <div className="relative">
+                  <pre className="rounded-lg bg-muted p-3 text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all">
+                    {`<iframe src="https://rhex.app/embed/${partner.code}" width="100%" height="700" frameborder="0" style="border:none; max-width:500px;"></iframe>`}
+                  </pre>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-1 right-1"
+                    onClick={() => {
+                      navigator.clipboard.writeText(
+                        `<iframe src="https://rhex.app/embed/${partner.code}" width="100%" height="700" frameborder="0" style="border:none; max-width:500px;"></iframe>`
+                      );
+                    }}
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -1154,6 +1238,68 @@ export default function PartnerDetailPage() {
                 />
               </div>
             </div>
+
+            {editForm.modeA && (
+              <div className="rounded-md border border-border p-4 space-y-3">
+                <p className="text-sm font-medium">Embed Widget</p>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={editForm.widgetEnabled}
+                    onChange={(e) =>
+                      setEditForm((f) => ({ ...f, widgetEnabled: e.target.checked }))
+                    }
+                    className="h-4 w-4 rounded border-border"
+                  />
+                  Enable embed widget
+                </label>
+                {editForm.widgetEnabled && (
+                  <>
+                    <div className="grid gap-2">
+                      <Label>Primary Color (hex)</Label>
+                      <div className="flex gap-2">
+                        <input
+                          type="color"
+                          value={editForm.widgetPrimaryColor || "#c94277"}
+                          onChange={(e) =>
+                            setEditForm((f) => ({ ...f, widgetPrimaryColor: e.target.value }))
+                          }
+                          className="h-9 w-12 cursor-pointer rounded border border-input p-1"
+                        />
+                        <Input
+                          value={editForm.widgetPrimaryColor}
+                          onChange={(e) =>
+                            setEditForm((f) => ({ ...f, widgetPrimaryColor: e.target.value }))
+                          }
+                          placeholder="#3b82f6"
+                          className="font-mono"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Logo URL</Label>
+                      <Input
+                        value={editForm.widgetLogoUrl}
+                        onChange={(e) =>
+                          setEditForm((f) => ({ ...f, widgetLogoUrl: e.target.value }))
+                        }
+                        placeholder="https://example.com/logo.png"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Custom Heading</Label>
+                      <Input
+                        value={editForm.widgetCustomHeading}
+                        onChange={(e) =>
+                          setEditForm((f) => ({ ...f, widgetCustomHeading: e.target.value }))
+                        }
+                        placeholder="Trade in your old phone for cash"
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           <DialogFooter>

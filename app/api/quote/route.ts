@@ -10,7 +10,7 @@ import { parsePlatform } from "@/lib/parse-platform";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { deviceId, grade, imei, displayCurrency, referralCode } = body;
+    const { deviceId, grade, imei, displayCurrency, referralCode, source } = body;
 
     if (!deviceId || !grade) {
       return NextResponse.json(
@@ -153,6 +153,10 @@ export async function POST(request: NextRequest) {
     if (partnerId) {
       quoteData.partnerId = partnerId;
       quoteData.partnerMode = partnerMode;
+    }
+
+    if (source === "embed") {
+      quoteData.source = "embed";
     }
 
     const quoteRef = await adminDb.collection("quotes").add(quoteData);
