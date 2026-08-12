@@ -8,7 +8,9 @@ import {
   Smartphone,
   Power,
   MonitorSmartphone,
+  Smartphone as SmartphoneIcon,
   Settings,
+  Eye,
   Sparkles,
   ArrowLeft,
   Loader2,
@@ -51,7 +53,7 @@ interface GradingStep {
 const GRADING_STEPS: GradingStep[] = [
   {
     id: 1,
-    question: "Does the phone turn on?",
+    question: "Does the phone turn on and reach the home screen?",
     description:
       "Try powering on the device. Does it boot up and show the home screen?",
     icon: <Power className="h-6 w-6" />,
@@ -60,27 +62,45 @@ const GRADING_STEPS: GradingStep[] = [
   },
   {
     id: 2,
-    question: "Is the screen or housing damaged?",
+    question: "Is the screen cracked, chipped, shattered, or showing major display damage?",
     description:
-      "Check for dead pixels/lines, chips, heavy scratches or cracked screen, scuffs or damage on the housing.",
+      "Examples: cracks, broken glass, dead areas, coloured lines, severe screen defects.",
     icon: <MonitorSmartphone className="h-6 w-6" />,
     yesGrade: "D",
     noNext: 3,
   },
   {
     id: 3,
-    question: "Any functional issues or noticeable wear?",
+    question: "Is the housing significantly damaged?",
     description:
-      "Check for issues like faulty buttons, poor battery life, speaker problems, dents, or deep scratches.",
-    icon: <Settings className="h-6 w-6" />,
-    yesGrade: "C",
+      "Examples: bent frame, major dents, broken back glass, missing parts, severe corner damage.",
+    icon: <SmartphoneIcon className="h-6 w-6" />,
+    yesGrade: "D",
     noNext: 4,
   },
   {
     id: 4,
-    question: "Any minor wear or light scratches?",
+    question: "Does the phone have any functional issues?",
     description:
-      "Look closely for small cosmetic marks, light scratches on the screen or body, or minor signs of use.",
+      "Examples: faulty buttons, charging problems, speaker or microphone faults, camera issues, poor battery performance.",
+    icon: <Settings className="h-6 w-6" />,
+    yesGrade: "C",
+    noNext: 5,
+  },
+  {
+    id: 5,
+    question: "Does the phone have noticeable cosmetic wear?",
+    description:
+      "Examples: deep scratches, noticeable dents, heavy scuffing, worn edges or substantial surface marks.",
+    icon: <Eye className="h-6 w-6" />,
+    yesGrade: "C",
+    noNext: 6,
+  },
+  {
+    id: 6,
+    question: "Does the phone have minor cosmetic wear?",
+    description:
+      "Examples: light scratches, small scuffs or minor marks from normal use.",
     icon: <Sparkles className="h-6 w-6" />,
     yesGrade: "B",
     noGrade: "A",

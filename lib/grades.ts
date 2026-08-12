@@ -27,9 +27,18 @@ export const GRADE_LABELS: Record<string, string> = {
 export const SELL_GRADE_LABELS: Record<string, string> = {
   A: "Like New",
   B: "Good",
-  C: "Worn / Minor Damage",
+  C: "Worn / Functional Issues",
   D: "Heavily Damaged",
-  E: "Major Damage / No Power",
+  E: "No Power / Major Failure",
+};
+
+/** Sell-side grade descriptions (shown during trade-in grading). */
+export const SELL_GRADE_DESCRIPTIONS: Record<string, string> = {
+  A: "Pristine or virtually pristine. Fully functional.",
+  B: "Fully functional with only light cosmetic wear.",
+  C: "Noticeable cosmetic wear and/or minor functional issues, but no cracked glass, major display damage or significant structural damage.",
+  D: "Device powers on but has cracked/broken glass, significant display damage, bent housing or other major physical damage.",
+  E: "Device does not power on, or is otherwise unable to be assessed normally.",
 };
 
 /** Grade badge colours (Tailwind classes). */
