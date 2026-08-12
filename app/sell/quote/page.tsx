@@ -60,9 +60,9 @@ const GRADING_STEPS: GradingStep[] = [
   },
   {
     id: 2,
-    question: "Does the screen have issues?",
+    question: "Is the screen or housing damaged?",
     description:
-      "Check for cracks, dead pixels, discoloration, burn-in, or touch responsiveness problems.",
+      "Check for dead pixels/lines, chips, heavy scratches or cracked screen, scuffs or damage on the housing.",
     icon: <MonitorSmartphone className="h-6 w-6" />,
     yesGrade: "D",
     noNext: 3,

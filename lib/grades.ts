@@ -25,11 +25,11 @@ export const GRADE_LABELS: Record<string, string> = {
 
 /** Sell-side labels (describe the defect, not cosmetic tier). */
 export const SELL_GRADE_LABELS: Record<string, string> = {
-  A: "Excellent",
+  A: "Like New",
   B: "Good",
-  C: "Fair",
-  D: "Faulty or Damaged",
-  E: "No Power",
+  C: "Worn / Minor Damage",
+  D: "Heavily Damaged",
+  E: "Major Damage / No Power",
 };
 
 /** Grade badge colours (Tailwind classes). */
