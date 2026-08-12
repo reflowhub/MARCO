@@ -66,7 +66,7 @@ export default function ApiDocsPage() {
       );
     },
     pre: ({ children }) => (
-      <pre className="mt-3 overflow-x-auto rounded-lg bg-zinc-900 p-4 text-zinc-100 dark:bg-zinc-800">
+      <pre className="mt-3 overflow-x-auto rounded-lg bg-zinc-900 p-4 text-zinc-100 dark:bg-zinc-800 [&_code]:bg-transparent [&_code]:p-0 [&_code]:text-inherit [&_code]:rounded-none">
         {children}
       </pre>
     ),
