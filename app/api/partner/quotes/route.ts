@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
 
       quoteSnapshot.docs.forEach((doc) => {
         const data = doc.data() as Record<string, unknown>;
+        if (data.sandbox === true) return; // Hide sandbox quotes from partner portal
         if (statusFilter && data.status !== statusFilter) return;
         quoteDocs.push({ id: doc.id, data });
         if (data.deviceId && typeof data.deviceId === "string") {
@@ -88,6 +89,7 @@ export async function GET(request: NextRequest) {
 
       bulkSnapshot.docs.forEach((doc) => {
         const data = doc.data();
+        if (data.sandbox === true) return; // Hide sandbox quotes from partner portal
         if (statusFilter && data.status !== statusFilter) return;
         items.push({
           id: doc.id,

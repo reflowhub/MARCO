@@ -122,6 +122,7 @@ export async function GET(
       geoCountry: data.geoCountry ?? null,
       geoCity: data.geoCity ?? null,
       geoRegion: data.geoRegion ?? null,
+      sandbox: data.sandbox === true,
       createdAt: serializeTimestamp(data.createdAt),
       expiresAt: serializeTimestamp(data.expiresAt),
       acceptedAt: serializeTimestamp(data.acceptedAt),
@@ -248,8 +249,10 @@ export async function PUT(
 
     await quoteRef.update(updateData);
 
-    // Send revision notification email if transitioning to "revised"
-    if (updateData.status === "revised") {
+    const isSandbox = currentData.sandbox === true;
+
+    // Send revision notification email if transitioning to "revised" — skip for sandbox
+    if (updateData.status === "revised" && !isSandbox) {
       const freshDoc = await quoteRef.get();
       const freshData = freshDoc.data()!;
       if (freshData.customerEmail) {
@@ -310,8 +313,8 @@ export async function PUT(
       }
     }
 
-    // Trigger commission + email if transitioning to "paid"
-    if (updateData.status === "paid") {
+    // Trigger commission + email if transitioning to "paid" — skip for sandbox
+    if (updateData.status === "paid" && !isSandbox) {
       const freshDoc = await quoteRef.get();
       const freshData = freshDoc.data() as Record<string, unknown>;
       await onQuotePaid(id, freshData).catch((err) =>

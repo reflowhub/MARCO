@@ -156,30 +156,34 @@ export async function PUT(
 
     await quoteRef.update(updateData);
 
-    // Auto-create/link customer record (non-blocking)
-    try {
-      const customerId = await findOrCreateCustomer({
-        type: "individual",
-        name: customerName,
-        email: customerEmail,
-        phone: customerPhone,
-        shippingAddress,
-        paymentMethod,
-        payIdPhone: paymentMethod === "payid" ? payIdPhone : null,
-        bankBSB: paymentMethod === "bank_transfer" ? bankBSB : null,
-        bankAccountNumber:
-          paymentMethod === "bank_transfer" ? bankAccountNumber : null,
-        bankAccountName:
-          paymentMethod === "bank_transfer" ? bankAccountName : null,
-        quoteId: id,
-        quoteValueNZD: existingData.quotePriceNZD ?? 0,
-      });
-      await quoteRef.update({ customerId });
-    } catch (err) {
-      console.error("Customer link error (non-blocking):", err);
+    const isSandbox = existingData.sandbox === true;
+
+    // Auto-create/link customer record (non-blocking) — skip for sandbox
+    if (!isSandbox) {
+      try {
+        const customerId = await findOrCreateCustomer({
+          type: "individual",
+          name: customerName,
+          email: customerEmail,
+          phone: customerPhone,
+          shippingAddress,
+          paymentMethod,
+          payIdPhone: paymentMethod === "payid" ? payIdPhone : null,
+          bankBSB: paymentMethod === "bank_transfer" ? bankBSB : null,
+          bankAccountNumber:
+            paymentMethod === "bank_transfer" ? bankAccountNumber : null,
+          bankAccountName:
+            paymentMethod === "bank_transfer" ? bankAccountName : null,
+          quoteId: id,
+          quoteValueNZD: existingData.quotePriceNZD ?? 0,
+        });
+        await quoteRef.update({ customerId });
+      } catch (err) {
+        console.error("Customer link error (non-blocking):", err);
+      }
     }
 
-    // Fetch device info for email
+    // Fetch device info for email/response
     let device = null;
     if (existingData.deviceId) {
       const deviceDoc = await adminDb
@@ -197,21 +201,23 @@ export async function PUT(
       }
     }
 
-    // Send acceptance email (non-blocking)
-    const deviceLabel = device
-      ? `${device.make} ${device.model} ${device.storage}`.trim()
-      : "your device";
-    sendEmail({
-      to: customerEmail,
-      subject: "Your trade-in quote has been accepted",
-      react: QuoteAcceptedEmail({
-        customerName,
-        deviceName: deviceLabel,
-        quotePrice: existingData.quotePriceNZD ?? 0,
-        currency: "NZD",
-        quoteId: id,
-      }),
-    });
+    // Send acceptance email (non-blocking) — skip for sandbox
+    if (!isSandbox) {
+      const deviceLabel = device
+        ? `${device.make} ${device.model} ${device.storage}`.trim()
+        : "your device";
+      sendEmail({
+        to: customerEmail,
+        subject: "Your trade-in quote has been accepted",
+        react: QuoteAcceptedEmail({
+          customerName,
+          deviceName: deviceLabel,
+          quotePrice: existingData.quotePriceNZD ?? 0,
+          currency: "NZD",
+          quoteId: id,
+        }),
+      });
+    }
 
     // Fetch updated quote for response
     const updatedDoc = await quoteRef.get();

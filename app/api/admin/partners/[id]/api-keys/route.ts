@@ -55,6 +55,7 @@ export async function GET(
           id: doc.id,
           keyPrefix: data.keyPrefix ?? "",
           label: data.label ?? "",
+          sandbox: data.sandbox === true,
           status: data.status ?? "active",
           createdAt: serializeTimestamp(data.createdAt),
           lastUsedAt: serializeTimestamp(data.lastUsedAt),
@@ -113,17 +114,20 @@ export async function POST(
 
     const body = await request.json().catch(() => ({}));
     const label = (body.label as string)?.trim() || "Default";
+    const sandbox = body.sandbox === true;
 
-    // Generate key: rhx_ + 32 random hex bytes
-    const plainKey = "rhx_" + crypto.randomBytes(32).toString("hex");
+    // Generate key: rhx_test_ for sandbox, rhx_ for production
+    const prefix = sandbox ? "rhx_test_" : "rhx_";
+    const plainKey = prefix + crypto.randomBytes(32).toString("hex");
     const keyHash = hashApiKey(plainKey);
-    const keyPrefix = plainKey.slice(0, 12);
+    const keyPrefix = plainKey.slice(0, sandbox ? 17 : 12);
 
     const docRef = await adminDb.collection("apiKeys").add({
       keyHash,
       keyPrefix,
       partnerId: id,
       label,
+      sandbox,
       status: "active",
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       revokedAt: null,
@@ -133,7 +137,7 @@ export async function POST(
 
     // Return the plaintext key — this is the ONLY time it is shown
     return NextResponse.json(
-      { id: docRef.id, key: plainKey, keyPrefix, label },
+      { id: docRef.id, key: plainKey, keyPrefix, label, sandbox },
       { status: 201 }
     );
   } catch (error) {

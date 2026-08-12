@@ -297,6 +297,7 @@ export async function POST(request: NextRequest) {
       partnerMode: "B",
       partnerRateDiscount: discount,
       source: "api",
+      ...(partner.sandbox && { sandbox: true }),
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       acceptedAt: null,
     };

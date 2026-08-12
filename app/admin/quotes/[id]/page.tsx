@@ -103,6 +103,7 @@ interface Quote {
   geoCountry?: string;
   geoCity?: string;
   geoRegion?: string;
+  sandbox?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -446,6 +447,14 @@ export default function QuoteDetailPage() {
           >
             {STATUS_LABELS[quote.status]}
           </Badge>
+          {quote.sandbox && (
+            <Badge
+              variant="outline"
+              className="border-amber-500 text-amber-600"
+            >
+              SANDBOX
+            </Badge>
+          )}
         </div>
       </div>
 

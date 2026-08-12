@@ -103,6 +103,7 @@ interface ApiKey {
   id: string;
   keyPrefix: string;
   label: string;
+  sandbox: boolean;
   status: "active" | "revoked";
   createdAt: string | null;
   lastUsedAt: string | null;
@@ -193,6 +194,7 @@ export default function PartnerDetailPage() {
   const [generateKeyOpen, setGenerateKeyOpen] = useState(false);
   const [generateKeyLoading, setGenerateKeyLoading] = useState(false);
   const [newKeyLabel, setNewKeyLabel] = useState("");
+  const [newKeySandbox, setNewKeySandbox] = useState(false);
   const [generatedApiKey, setGeneratedApiKey] = useState<string | null>(null);
   const [apiKeyCopied, setApiKeyCopied] = useState(false);
   const [revokeKeyId, setRevokeKeyId] = useState<string | null>(null);
@@ -258,7 +260,7 @@ export default function PartnerDetailPage() {
       const res = await fetch(`/api/admin/partners/${id}/api-keys`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label: newKeyLabel.trim() || "Default" }),
+        body: JSON.stringify({ label: newKeyLabel.trim() || "Default", sandbox: newKeySandbox }),
       });
       if (!res.ok) return;
       const data = await res.json();
@@ -873,6 +875,7 @@ export default function PartnerDetailPage() {
                 variant="outline"
                 onClick={() => {
                   setNewKeyLabel("");
+                  setNewKeySandbox(false);
                   setGeneratedApiKey(null);
                   setApiKeyCopied(false);
                   setGenerateKeyOpen(true);
@@ -905,6 +908,14 @@ export default function PartnerDetailPage() {
                       <span className="text-muted-foreground truncate">
                         {key.label}
                       </span>
+                      {key.sandbox && (
+                        <Badge
+                          variant="outline"
+                          className="text-xs shrink-0 border-amber-500 text-amber-600"
+                        >
+                          sandbox
+                        </Badge>
+                      )}
                       <Badge
                         variant={key.status === "active" ? "default" : "secondary"}
                         className="text-xs shrink-0"
@@ -1526,14 +1537,28 @@ export default function PartnerDetailPage() {
                 </p>
               </div>
             ) : (
-              <div className="grid gap-2">
-                <Label htmlFor="key-label">Label (optional)</Label>
-                <Input
-                  id="key-label"
-                  placeholder="e.g. Production, Staging"
-                  value={newKeyLabel}
-                  onChange={(e) => setNewKeyLabel(e.target.value)}
-                />
+              <div className="grid gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="key-label">Label (optional)</Label>
+                  <Input
+                    id="key-label"
+                    placeholder="e.g. Production, Staging"
+                    value={newKeyLabel}
+                    onChange={(e) => setNewKeyLabel(e.target.value)}
+                  />
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={newKeySandbox}
+                    onChange={(e) => setNewKeySandbox(e.target.checked)}
+                    className="h-4 w-4 rounded border-border"
+                  />
+                  <span className="text-sm font-medium">Sandbox key</span>
+                  <span className="text-xs text-muted-foreground">
+                    (testing only — no emails, commissions, or customer records)
+                  </span>
+                </label>
               </div>
             )}
           </div>

@@ -23,6 +23,8 @@ export interface ApiKeyPartner {
   payoutFrequency: string | null;
   // Mode B
   partnerRateDiscount: number | null;
+  // Sandbox
+  sandbox: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -94,6 +96,7 @@ export async function verifyApiKey(
       commissionTiers: data.commissionTiers ?? null,
       payoutFrequency: data.payoutFrequency ?? "monthly",
       partnerRateDiscount: data.partnerRateDiscount ?? null,
+      sandbox: keyData.sandbox === true,
     };
   } catch (error) {
     console.error("API key verification failed:", error);

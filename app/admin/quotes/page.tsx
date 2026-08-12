@@ -59,6 +59,7 @@ interface Quote {
   acceptedAt: string | null;
   inspectionGrade: string | null;
   revisedPriceNZD: number | null;
+  sandbox: boolean;
 }
 
 interface Device {
@@ -155,6 +156,7 @@ export default function QuotesPage() {
   const [activeStatus, setActiveStatus] = useState<StatusFilter>("all");
   const [searchInput, setSearchInput] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [includeSandbox, setIncludeSandbox] = useState(false);
 
   // ---- pagination state ---------------------------------------------------
   const [currentPage, setCurrentPage] = useState(1);
@@ -190,7 +192,7 @@ export default function QuotesPage() {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeStatus, debouncedSearch]);
+  }, [activeStatus, debouncedSearch, includeSandbox]);
 
   // ---- fetch quotes -------------------------------------------------------
   const fetchQuotes = useCallback(() => {
@@ -203,6 +205,9 @@ export default function QuotesPage() {
     if (debouncedSearch) {
       params.set("search", debouncedSearch);
     }
+    if (includeSandbox) {
+      params.set("includeSandbox", "true");
+    }
 
     const url = `/api/admin/quotes${params.toString() ? `?${params.toString()}` : ""}`;
 
@@ -214,7 +219,7 @@ export default function QuotesPage() {
         }
       })
       .finally(() => setLoading(false));
-  }, [activeStatus, debouncedSearch]);
+  }, [activeStatus, debouncedSearch, includeSandbox]);
 
   useEffect(() => {
     fetchQuotes();
@@ -384,9 +389,9 @@ export default function QuotesPage() {
         })}
       </div>
 
-      {/* Search input */}
-      <div className="mt-4 flex max-w-sm items-center gap-2">
-        <div className="relative flex-1">
+      {/* Search input + sandbox toggle */}
+      <div className="mt-4 flex items-center gap-4">
+        <div className="relative max-w-sm flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search by customer name or email..."
@@ -395,6 +400,15 @@ export default function QuotesPage() {
             className="pl-9"
           />
         </div>
+        <label className="flex items-center gap-2 cursor-pointer shrink-0">
+          <input
+            type="checkbox"
+            checked={includeSandbox}
+            onChange={(e) => setIncludeSandbox(e.target.checked)}
+            className="h-4 w-4 rounded border-border"
+          />
+          <span className="text-sm text-muted-foreground">Include sandbox</span>
+        </label>
       </div>
 
       {/* Table */}
@@ -470,12 +484,22 @@ export default function QuotesPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge
-                        variant={badgeProps.variant}
-                        className={badgeProps.className}
-                      >
-                        {quote.status}
-                      </Badge>
+                      <div className="flex items-center gap-1">
+                        <Badge
+                          variant={badgeProps.variant}
+                          className={badgeProps.className}
+                        >
+                          {quote.status}
+                        </Badge>
+                        {quote.sandbox && (
+                          <Badge
+                            variant="outline"
+                            className="border-amber-500 text-amber-600 text-[10px]"
+                          >
+                            SANDBOX
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {formatDate(quote.createdAt)}

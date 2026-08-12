@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const statusFilter = searchParams.get("status")?.toLowerCase().trim() ?? "";
     const search = searchParams.get("search")?.toLowerCase().trim() ?? "";
+    const includeSandbox = searchParams.get("includeSandbox") === "true";
 
     // Build Firestore query
     let query: FirebaseFirestore.Query = adminDb.collection("quotes");
@@ -40,6 +41,8 @@ export async function GET(request: NextRequest) {
 
     snapshot.docs.forEach((doc) => {
       const data = doc.data() as Record<string, unknown>;
+      // Filter out sandbox quotes unless explicitly included
+      if (!includeSandbox && data.sandbox === true) return;
       quoteDocs.push({ id: doc.id, data });
       if (data.deviceId && typeof data.deviceId === "string") {
         deviceIdSet.add(data.deviceId);
@@ -111,6 +114,7 @@ export async function GET(request: NextRequest) {
         imei: data.imei ?? null,
         inspectionGrade: data.inspectionGrade ?? null,
         revisedPriceNZD: data.revisedPriceNZD ?? null,
+        sandbox: data.sandbox === true,
       };
     });
 

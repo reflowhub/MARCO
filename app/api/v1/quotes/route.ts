@@ -115,9 +115,12 @@ export async function POST(request: NextRequest) {
     const quotePriceDisplay = convertPrice(partnerPriceNZD, currency, fxRate);
     const publicPriceDisplay = convertPrice(Number(publicPriceNZD), currency, fxRate);
 
-    // Calculate expiry (14 days)
+    // Calculate expiry (1 hour for sandbox, 14 days for production)
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+    const expiryMs = partner.sandbox
+      ? 1 * 60 * 60 * 1000
+      : 14 * 24 * 60 * 60 * 1000;
+    const expiresAt = new Date(now.getTime() + expiryMs);
 
     // Capture client metadata
     const userAgent = request.headers.get("user-agent") ?? null;
@@ -139,6 +142,7 @@ export async function POST(request: NextRequest) {
       partnerMode: "B",
       partnerRateDiscount: discount,
       source: "api",
+      ...(partner.sandbox && { sandbox: true }),
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
       userAgent,
@@ -166,6 +170,7 @@ export async function POST(request: NextRequest) {
         displayCurrency: currency,
         status: "quoted",
         source: "api",
+        ...(partner.sandbox && { sandbox: true }),
         createdAt: now.toISOString(),
         expiresAt: expiresAt.toISOString(),
       },
