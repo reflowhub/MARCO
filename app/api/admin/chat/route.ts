@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
   }
 
   const result = streamText({
-    model: anthropic("claude-sonnet-4-20250514"),
+    model: anthropic(process.env.CODEBASE_CHAT_MODEL || "claude-sonnet-4-6"),
     system: `You are a helpful codebase assistant for the rhex admin panel — a Next.js application for managing device trade-ins, pricing, quotes, orders, and inventory.
 
 The codebase snapshot was generated at ${meta.generatedAt} and contains ${meta.totalFiles} files with ${meta.totalLines} total lines of code.
