@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import { requireApiKey, ApiKeyPartner } from "@/lib/api-key-auth";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { checkRevisionExpiry } from "@/lib/revision-expiry";
 
 // ---------------------------------------------------------------------------
 // GET /api/v1/quotes/[id] — Get quote status with device info
@@ -27,6 +28,10 @@ export async function GET(
 
   try {
     const { id } = await params;
+
+    // Check for revision expiry
+    await checkRevisionExpiry("quotes", id);
+
     const quoteDoc = await adminDb.collection("quotes").doc(id).get();
 
     if (!quoteDoc.exists) {
@@ -73,9 +78,19 @@ export async function GET(
       imei: quoteData.imei ?? null,
       customerName: quoteData.customerName ?? null,
       customerEmail: quoteData.customerEmail ?? null,
+      inspectionGrade: quoteData.inspectionGrade ?? null,
+      revisedPriceNZD: quoteData.revisedPriceNZD ?? null,
+      revisedDeviceId: quoteData.revisedDeviceId ?? null,
+      revisedDeviceMake: quoteData.revisedDeviceMake ?? null,
+      revisedDeviceModel: quoteData.revisedDeviceModel ?? null,
+      revisedDeviceStorage: quoteData.revisedDeviceStorage ?? null,
       createdAt: serializeTimestamp(quoteData.createdAt),
       expiresAt: serializeTimestamp(quoteData.expiresAt),
       acceptedAt: serializeTimestamp(quoteData.acceptedAt),
+      revisedAt: serializeTimestamp(quoteData.revisedAt),
+      revisionExpiresAt: serializeTimestamp(quoteData.revisionExpiresAt),
+      returningAt: serializeTimestamp(quoteData.returningAt),
+      returnedAt: serializeTimestamp(quoteData.returnedAt),
       device,
     };
 

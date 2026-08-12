@@ -37,6 +37,8 @@ import { gtagEvent, gtagConversion } from "@/lib/gtag";
 import { fbPixelEvent } from "@/lib/fbpixel";
 import { SELL_GRADE_LABELS as GRADE_LABELS, GRADE_COLORS } from "@/lib/grades";
 
+import { AlertTriangle } from "lucide-react";
+
 interface QuoteData {
   id: string;
   deviceId: string;
@@ -60,6 +62,14 @@ interface QuoteData {
     model: string;
     storage: string;
   };
+  inspectionGrade?: string;
+  revisedPriceNZD?: number;
+  revisedDeviceId?: string;
+  revisedDeviceMake?: string;
+  revisedDeviceModel?: string;
+  revisedDeviceStorage?: string;
+  revisedAt?: string;
+  revisionExpiresAt?: string;
 }
 
 interface CompetitorOffer {
@@ -85,6 +95,7 @@ export default function QuoteResultPage({
   const [copied, setCopied] = useState(false);
   const [requoting, setRequoting] = useState(false);
   const [competitors, setCompetitors] = useState<CompetitorOffer[]>([]);
+  const [revisionLoading, setRevisionLoading] = useState(false);
 
   // Form state
   const [customerName, setCustomerName] = useState("");
@@ -248,6 +259,29 @@ export default function QuoteResultPage({
     }
   };
 
+  const handleRevisionResponse = async (action: "accept_revision" | "reject_revision") => {
+    setRevisionLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/quote/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setQuote(data);
+      } else {
+        const errData = await res.json();
+        setError(errData.error || "Failed to respond to revision");
+      }
+    } catch {
+      setError("Failed to respond. Please try again.");
+    } finally {
+      setRevisionLoading(false);
+    }
+  };
+
   const isExpired = quote?.expiresAt
     ? new Date(quote.expiresAt) < new Date()
     : false;
@@ -362,6 +396,140 @@ export default function QuoteResultPage({
                 <p className="text-sm text-green-700">
                   Your quote has been confirmed. Follow the shipping
                   instructions below.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Revised Quote — Accept / Reject */}
+        {quote.status === "revised" && (
+          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <AlertTriangle className="h-5 w-5 text-amber-600" />
+              <h3 className="font-semibold text-amber-800">
+                Revised Quote
+              </h3>
+            </div>
+            <p className="text-sm text-amber-700 mb-4">
+              After inspecting your device, we found it differs from the
+              original quote. Please review the changes below.
+            </p>
+
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="rounded-lg bg-white/80 p-3">
+                <p className="text-xs text-muted-foreground mb-1">
+                  Original
+                </p>
+                <p className="font-medium text-sm">
+                  {quote.device?.make} {quote.device?.model}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Grade {quote.grade}
+                </p>
+                <p className="text-lg font-bold mt-1">
+                  $
+                  {(
+                    quote.quotePriceDisplay ?? quote.quotePriceNZD
+                  ).toFixed(2)}
+                </p>
+              </div>
+              <div className="rounded-lg bg-white/80 p-3 border-2 border-amber-300">
+                <p className="text-xs text-muted-foreground mb-1">
+                  Revised
+                </p>
+                <p className="font-medium text-sm">
+                  {quote.revisedDeviceId
+                    ? `${quote.revisedDeviceMake} ${quote.revisedDeviceModel}`
+                    : `${quote.device?.make} ${quote.device?.model}`}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Grade {quote.inspectionGrade}
+                </p>
+                <p className="text-lg font-bold mt-1">
+                  ${(quote.revisedPriceNZD ?? 0).toFixed(2)}
+                </p>
+              </div>
+            </div>
+
+            {quote.revisionExpiresAt && (
+              <p className="text-xs text-amber-600 mb-4">
+                Please respond by{" "}
+                {new Date(quote.revisionExpiresAt).toLocaleDateString(
+                  "en-NZ",
+                  { year: "numeric", month: "long", day: "numeric" }
+                )}
+                . If no response, your device will be returned.
+              </p>
+            )}
+
+            <div className="flex gap-3">
+              <Button
+                className="flex-1"
+                onClick={() =>
+                  handleRevisionResponse("accept_revision")
+                }
+                disabled={revisionLoading}
+              >
+                {revisionLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : null}
+                Accept Revised Offer
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() =>
+                  handleRevisionResponse("reject_revision")
+                }
+                disabled={revisionLoading}
+              >
+                Reject &amp; Return Device
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Returning — device being sent back */}
+        {quote.status === "returning" && (
+          <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4">
+            <div className="flex items-center gap-2">
+              <Package className="h-5 w-5 text-blue-600" />
+              <div>
+                <p className="font-semibold text-blue-800">
+                  Device Being Returned
+                </p>
+                <p className="text-sm text-blue-700 mt-1">
+                  Your device is being prepared for return. We will send it
+                  back to the shipping address on file.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Returned — terminal */}
+        {quote.status === "returned" && (
+          <div className="mb-6 rounded-xl border bg-muted p-4">
+            <p className="font-semibold">Device Returned</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Your device has been returned. This trade-in is now closed.
+            </p>
+          </div>
+        )}
+
+        {/* Processing status (inspected, waiting for payment) */}
+        {quote.status === "inspected" && (
+          <div className="mb-6 rounded-lg border border-green-200 bg-green-50 p-4">
+            <div className="flex items-center gap-2">
+              <Check className="h-5 w-5 text-green-600" />
+              <div>
+                <p className="font-semibold text-green-800">
+                  Quote Confirmed
+                </p>
+                <p className="text-sm text-green-700">
+                  Your trade-in has been inspected and confirmed. Payment
+                  will be processed shortly.
                 </p>
               </div>
             </div>

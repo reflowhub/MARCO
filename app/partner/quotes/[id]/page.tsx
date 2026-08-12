@@ -11,6 +11,9 @@ import {
   Smartphone,
   CheckCircle2,
   XCircle,
+  AlertTriangle,
+  Clock,
+  Package,
 } from "lucide-react";
 import { useFX } from "@/lib/use-fx";
 
@@ -36,6 +39,14 @@ interface QuoteDetail {
   customerPhone: string | null;
   inspectionGrade: string | null;
   revisedPriceNZD: number | null;
+  revisedDeviceId: string | null;
+  revisedDeviceMake: string | null;
+  revisedDeviceModel: string | null;
+  revisedDeviceStorage: string | null;
+  revisedAt: string | null;
+  revisionExpiresAt: string | null;
+  returningAt: string | null;
+  returnedAt: string | null;
   createdAt: string | null;
   expiresAt: string | null;
   acceptedAt: string | null;
@@ -45,24 +56,28 @@ interface QuoteDetail {
 // Constants
 // ---------------------------------------------------------------------------
 
-const STATUSES = [
-  "quoted",
-  "accepted",
-  "shipped",
-  "received",
-  "inspected",
-  "paid",
-] as const;
-
 const STATUS_LABELS: Record<string, string> = {
   quoted: "Quoted",
   accepted: "Accepted",
   shipped: "Shipped",
   received: "Received",
+  revised: "Revised",
   inspected: "Inspected",
   paid: "Paid",
+  returning: "Returning",
+  returned: "Returned",
   cancelled: "Cancelled",
 };
+
+function getStepperStatuses(currentStatus: string): string[] {
+  if (currentStatus === "returning" || currentStatus === "returned") {
+    return ["quoted", "accepted", "shipped", "received", "revised", "returning", "returned"];
+  }
+  if (currentStatus === "revised") {
+    return ["quoted", "accepted", "shipped", "received", "revised", "inspected", "paid"];
+  }
+  return ["quoted", "accepted", "shipped", "received", "inspected", "paid"];
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -89,6 +104,19 @@ function statusBadgeProps(status: string): {
         className:
           "border-transparent bg-emerald-600 text-white hover:bg-emerald-600/80",
       };
+    case "revised":
+      return {
+        variant: "default",
+        className:
+          "border-transparent bg-amber-500 text-white hover:bg-amber-500/80",
+      };
+    case "returning":
+      return {
+        variant: "outline",
+        className: "border-amber-300 text-amber-700",
+      };
+    case "returned":
+      return { variant: "secondary" };
     case "cancelled":
       return { variant: "destructive" };
     default:
@@ -132,6 +160,26 @@ export default function PartnerQuoteDetailPage({
   const [quote, setQuote] = useState<QuoteDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [responding, setResponding] = useState(false);
+
+  const handleRevisionResponse = async (
+    action: "accept_revision" | "reject_revision"
+  ) => {
+    setResponding(true);
+    try {
+      const res = await fetch(`/api/partner/quotes/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setQuote((prev) => (prev ? { ...prev, ...data } : prev));
+      }
+    } finally {
+      setResponding(false);
+    }
+  };
 
   useEffect(() => {
     fetch(`/api/partner/quotes/${id}`)
@@ -176,7 +224,10 @@ export default function PartnerQuoteDetailPage({
   }
 
   const badgeProps = statusBadgeProps(quote.status);
-  const isTerminal = quote.status === "paid" || quote.status === "cancelled";
+  const isTerminal =
+    quote.status === "paid" ||
+    quote.status === "cancelled" ||
+    quote.status === "returned";
   const isModeB = quote.partnerMode === "B";
 
   return (
@@ -319,10 +370,8 @@ export default function PartnerQuoteDetailPage({
         {/* Progress stepper */}
         <div className="overflow-x-auto">
           <div className="flex items-center gap-1 min-w-max">
-            {STATUSES.map((step, idx) => {
-              const currentIdx = STATUSES.indexOf(
-                quote.status as (typeof STATUSES)[number]
-              );
+            {getStepperStatuses(quote.status).map((step, idx, steps) => {
+              const currentIdx = steps.indexOf(quote.status);
               const isCancelled = quote.status === "cancelled";
               const isCompleted = !isCancelled && currentIdx > idx;
               const isCurrent = !isCancelled && quote.status === step;
@@ -390,6 +439,80 @@ export default function PartnerQuoteDetailPage({
           </div>
         </div>
 
+        {/* Revised — accept / reject */}
+        {quote.status === "revised" && (
+          <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-6">
+            <div className="flex items-center gap-2 mb-3">
+              <AlertTriangle className="h-5 w-5 text-amber-600" />
+              <h3 className="font-semibold text-amber-800">
+                Revised Quote — Action Required
+              </h3>
+            </div>
+            <p className="text-sm text-amber-700 mb-3">
+              The device was inspected and differs from the original quote.
+              Please accept or reject the revised offer.
+            </p>
+
+            <div className="grid grid-cols-2 gap-3 mb-4 text-sm">
+              <div className="rounded-lg bg-white/80 p-3">
+                <p className="text-xs text-muted-foreground mb-1">Original</p>
+                <p className="font-medium">
+                  {quote.deviceMake} {quote.deviceModel}
+                </p>
+                <p className="text-muted-foreground">Grade {quote.grade}</p>
+                <p className="text-lg font-bold mt-1">
+                  {fxFormatPrice(quote.quotePriceNZD, partner?.currency ?? "AUD")}
+                </p>
+              </div>
+              <div className="rounded-lg bg-white/80 p-3 border-2 border-amber-300">
+                <p className="text-xs text-muted-foreground mb-1">Revised</p>
+                <p className="font-medium">
+                  {quote.revisedDeviceId
+                    ? `${quote.revisedDeviceMake} ${quote.revisedDeviceModel}`
+                    : `${quote.deviceMake} ${quote.deviceModel}`}
+                </p>
+                <p className="text-muted-foreground">
+                  Grade {quote.inspectionGrade}
+                </p>
+                <p className="text-lg font-bold mt-1">
+                  {fxFormatPrice(quote.revisedPriceNZD ?? 0, partner?.currency ?? "AUD")}
+                </p>
+              </div>
+            </div>
+
+            {quote.revisionExpiresAt && (
+              <p className="text-xs text-amber-600 mb-4">
+                Respond by{" "}
+                {new Date(quote.revisionExpiresAt).toLocaleDateString("en-NZ", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
+                . No response will result in the device being returned.
+              </p>
+            )}
+
+            <div className="flex gap-3">
+              <Button
+                className="flex-1"
+                onClick={() => handleRevisionResponse("accept_revision")}
+                disabled={responding}
+              >
+                {responding && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Accept Revised Offer
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => handleRevisionResponse("reject_revision")}
+                disabled={responding}
+              >
+                Reject &amp; Return
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Terminal state messages */}
         {isTerminal && (
           <div className="mt-4">
@@ -405,6 +528,20 @@ export default function PartnerQuoteDetailPage({
                 This quote has been cancelled.
               </div>
             )}
+            {quote.status === "returned" && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Package className="h-4 w-4" />
+                Device has been returned.
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Returning — in transit */}
+        {quote.status === "returning" && (
+          <div className="mt-4 flex items-center gap-2 text-sm text-amber-600">
+            <Clock className="h-4 w-4" />
+            Device is being prepared for return.
           </div>
         )}
       </div>

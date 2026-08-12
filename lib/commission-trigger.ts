@@ -43,8 +43,10 @@ export async function onQuotePaid(
     commissionTiers: partnerData.commissionTiers ?? null,
   };
 
-  // Determine quote total and device count
-  const quoteTotal = Number(quoteData.quotePriceNZD ?? 0);
+  // Determine quote total and device count — use revised price if available
+  const quoteTotal = Number(
+    quoteData.revisedPriceNZD ?? quoteData.quotePriceNZD ?? 0
+  );
   const deviceCount = 1; // single quote = 1 device
 
   // For tiered model, count this month's devices
@@ -123,7 +125,9 @@ export async function onBulkQuotePaid(
     commissionTiers: partnerData.commissionTiers ?? null,
   };
 
-  const quoteTotal = Number(bulkQuoteData.totalIndicativeNZD ?? 0);
+  const quoteTotal = Number(
+    bulkQuoteData.revisedTotalNZD ?? bulkQuoteData.totalIndicativeNZD ?? 0
+  );
   const deviceCount = Number(bulkQuoteData.totalDevices ?? 0);
 
   // For tiered model, count monthly devices

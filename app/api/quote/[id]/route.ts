@@ -4,6 +4,7 @@ import admin from "@/lib/firebase-admin";
 import { findOrCreateCustomer } from "@/lib/customer-link";
 import { sendEmail } from "@/lib/email";
 import QuoteAcceptedEmail from "@/emails/quote-accepted";
+import { checkRevisionExpiry } from "@/lib/revision-expiry";
 
 // GET /api/quote/[id] — Get a quote by ID, including device info
 export async function GET(
@@ -12,6 +13,10 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+
+    // Check for revision expiry (auto-transitions if expired)
+    await checkRevisionExpiry("quotes", id);
+
     const quoteDoc = await adminDb.collection("quotes").doc(id).get();
 
     if (!quoteDoc.exists) {
@@ -54,6 +59,20 @@ export async function GET(
     if (quoteData?.acceptedAt?.toDate) {
       serializedQuote.acceptedAt = quoteData.acceptedAt.toDate().toISOString();
     }
+    if (quoteData?.revisedAt?.toDate) {
+      serializedQuote.revisedAt = quoteData.revisedAt.toDate().toISOString();
+    }
+    if (quoteData?.revisionExpiresAt?.toDate) {
+      serializedQuote.revisionExpiresAt = quoteData.revisionExpiresAt
+        .toDate()
+        .toISOString();
+    }
+    if (quoteData?.returningAt?.toDate) {
+      serializedQuote.returningAt = quoteData.returningAt.toDate().toISOString();
+    }
+    if (quoteData?.returnedAt?.toDate) {
+      serializedQuote.returnedAt = quoteData.returnedAt.toDate().toISOString();
+    }
 
     return NextResponse.json({
       ...serializedQuote,
@@ -77,6 +96,85 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
 
+    // --- Handle revision response ---
+    if (
+      body.action === "accept_revision" ||
+      body.action === "reject_revision"
+    ) {
+      const quoteRef = adminDb.collection("quotes").doc(id);
+      const quoteDoc = await quoteRef.get();
+
+      if (!quoteDoc.exists) {
+        return NextResponse.json(
+          { error: "Quote not found" },
+          { status: 404 }
+        );
+      }
+
+      const data = quoteDoc.data()!;
+
+      if (data.status !== "revised") {
+        return NextResponse.json(
+          { error: "Quote is not in revised status" },
+          { status: 400 }
+        );
+      }
+
+      // Check expiry
+      if (data.revisionExpiresAt?.toDate) {
+        if (data.revisionExpiresAt.toDate() < new Date()) {
+          return NextResponse.json(
+            { error: "Revision response period has expired" },
+            { status: 400 }
+          );
+        }
+      }
+
+      const updateData: Record<string, unknown> = {};
+
+      if (body.action === "accept_revision") {
+        updateData.status = "inspected";
+        updateData.revisionAcceptedAt =
+          admin.firestore.FieldValue.serverTimestamp();
+      } else {
+        updateData.status = "returning";
+        updateData.returningAt =
+          admin.firestore.FieldValue.serverTimestamp();
+        updateData.revisionRejectedAt =
+          admin.firestore.FieldValue.serverTimestamp();
+      }
+
+      await quoteRef.update(updateData);
+
+      // Re-fetch and serialize
+      const updatedDoc = await quoteRef.get();
+      const updatedData = updatedDoc.data();
+      const serialized: Record<string, unknown> = {
+        id: updatedDoc.id,
+        ...updatedData,
+      };
+
+      // Serialize timestamps
+      for (const field of [
+        "createdAt",
+        "expiresAt",
+        "acceptedAt",
+        "revisedAt",
+        "revisionExpiresAt",
+        "returningAt",
+        "returnedAt",
+        "revisionAcceptedAt",
+        "revisionRejectedAt",
+      ]) {
+        if (updatedData?.[field]?.toDate) {
+          serialized[field] = updatedData[field].toDate().toISOString();
+        }
+      }
+
+      return NextResponse.json(serialized);
+    }
+
+    // --- Original acceptance flow ---
     const {
       customerName,
       customerEmail,

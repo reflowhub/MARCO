@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
+import admin from "@/lib/firebase-admin";
 import { onQuotePaid } from "@/lib/commission-trigger";
 import { requireAdmin } from "@/lib/admin-auth";
 import { sendEmail } from "@/lib/email";
 import QuotePaidEmail from "@/emails/quote-paid";
+import QuoteRevisedEmail from "@/emails/quote-revised";
+import { checkRevisionExpiry } from "@/lib/revision-expiry";
 
 // ---------------------------------------------------------------------------
 // Valid status transitions
@@ -13,7 +16,10 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
   quoted: ["accepted", "cancelled"],
   accepted: ["shipped", "cancelled"],
   shipped: ["received", "cancelled"],
-  received: ["inspected", "cancelled"],
+  received: ["revised", "inspected", "cancelled"],
+  revised: ["inspected", "returning", "cancelled"],
+  returning: ["returned", "cancelled"],
+  returned: [],
   inspected: ["paid", "cancelled"],
   paid: ["cancelled"],
   cancelled: [],
@@ -41,7 +47,11 @@ export async function GET(
       );
     }
 
-    const data = quoteDoc.data()!;
+    // Check for revision expiry (auto-transitions if expired)
+    await checkRevisionExpiry("quotes", id);
+    // Re-fetch in case expiry changed the status
+    const freshQuoteDoc = await quoteRef.get();
+    const data = freshQuoteDoc.data()!;
 
     // Fetch associated device
     let device: Record<string, unknown> | null = null;
@@ -99,6 +109,15 @@ export async function GET(
       imei: data.imei ?? null,
       inspectionGrade: data.inspectionGrade ?? null,
       revisedPriceNZD: data.revisedPriceNZD ?? null,
+      revisedDeviceId: data.revisedDeviceId ?? null,
+      revisedDeviceMake: data.revisedDeviceMake ?? null,
+      revisedDeviceModel: data.revisedDeviceModel ?? null,
+      revisedDeviceStorage: data.revisedDeviceStorage ?? null,
+      revisedAt: serializeTimestamp(data.revisedAt),
+      revisionExpiresAt: serializeTimestamp(data.revisionExpiresAt),
+      revisionAutoExpired: data.revisionAutoExpired ?? null,
+      returningAt: serializeTimestamp(data.returningAt),
+      returnedAt: serializeTimestamp(data.returnedAt),
       platform: data.platform ?? null,
       geoCountry: data.geoCountry ?? null,
       geoCity: data.geoCity ?? null,
@@ -132,7 +151,15 @@ export async function PUT(
     if (adminUser instanceof NextResponse) return adminUser;
     const { id } = await params;
     const body = await request.json();
-    const { status, inspectionGrade, revisedPriceNZD } = body;
+    const {
+      status,
+      inspectionGrade,
+      revisedPriceNZD,
+      revisedDeviceId,
+      revisedDeviceMake,
+      revisedDeviceModel,
+      revisedDeviceStorage,
+    } = body;
 
     const quoteRef = adminDb.collection("quotes").doc(id);
     const quoteDoc = await quoteRef.get();
@@ -183,6 +210,35 @@ export async function PUT(
       updateData.revisedPriceNZD = revisedPriceNZD;
     }
 
+    // Apply optional revised device fields
+    if (revisedDeviceId !== undefined) {
+      updateData.revisedDeviceId = revisedDeviceId;
+    }
+    if (revisedDeviceMake !== undefined) {
+      updateData.revisedDeviceMake = revisedDeviceMake;
+    }
+    if (revisedDeviceModel !== undefined) {
+      updateData.revisedDeviceModel = revisedDeviceModel;
+    }
+    if (revisedDeviceStorage !== undefined) {
+      updateData.revisedDeviceStorage = revisedDeviceStorage;
+    }
+
+    // Set timestamps for revision-related transitions
+    if (updateData.status === "revised") {
+      updateData.revisedAt = admin.firestore.FieldValue.serverTimestamp();
+      const expiryDays = parseInt(process.env.REVISION_EXPIRY_DAYS ?? "7", 10);
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + expiryDays);
+      updateData.revisionExpiresAt = admin.firestore.Timestamp.fromDate(expiresAt);
+    }
+    if (updateData.status === "returning") {
+      updateData.returningAt = admin.firestore.FieldValue.serverTimestamp();
+    }
+    if (updateData.status === "returned") {
+      updateData.returnedAt = admin.firestore.FieldValue.serverTimestamp();
+    }
+
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
         { error: "No valid fields to update" },
@@ -191,6 +247,68 @@ export async function PUT(
     }
 
     await quoteRef.update(updateData);
+
+    // Send revision notification email if transitioning to "revised"
+    if (updateData.status === "revised") {
+      const freshDoc = await quoteRef.get();
+      const freshData = freshDoc.data()!;
+      if (freshData.customerEmail) {
+        let deviceLabel = "your device";
+        if (freshData.deviceId && typeof freshData.deviceId === "string") {
+          const deviceDoc = await adminDb
+            .collection("devices")
+            .doc(freshData.deviceId as string)
+            .get();
+          if (deviceDoc.exists) {
+            const d = deviceDoc.data()!;
+            deviceLabel = `${d.make} ${d.model} ${d.storage}`.trim();
+          }
+        }
+
+        const revisedDeviceName =
+          freshData.revisedDeviceId
+            ? `${freshData.revisedDeviceMake} ${freshData.revisedDeviceModel} ${freshData.revisedDeviceStorage}`.trim()
+            : undefined;
+
+        const siteUrl =
+          process.env.NEXT_PUBLIC_SITE_URL ?? "https://rhex.app";
+        const quoteUrl = freshData.partnerId
+          ? `${siteUrl}/partner/quotes/${id}`
+          : `${siteUrl}/sell/quote/${id}`;
+
+        const expiresAtDate =
+          freshData.revisionExpiresAt?.toDate?.() ??
+          new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+        sendEmail({
+          to: freshData.customerEmail as string,
+          subject:
+            "Your trade-in device has been inspected — action required",
+          react: QuoteRevisedEmail({
+            customerName:
+              (freshData.customerName as string) ?? "there",
+            deviceName: deviceLabel,
+            originalGrade: freshData.grade as string,
+            revisedGrade: freshData.inspectionGrade as string,
+            originalPrice:
+              (freshData.quotePriceDisplay as number) ??
+              (freshData.quotePriceNZD as number) ??
+              0,
+            revisedPrice: (freshData.revisedPriceNZD as number) ?? 0,
+            currency:
+              (freshData.displayCurrency as string) ?? "AUD",
+            quoteUrl,
+            expiresAt: expiresAtDate.toLocaleDateString("en-NZ", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            }),
+            deviceChanged: !!freshData.revisedDeviceId,
+            revisedDeviceName,
+          }),
+        });
+      }
+    }
 
     // Trigger commission + email if transitioning to "paid"
     if (updateData.status === "paid") {
@@ -239,6 +357,14 @@ export async function PUT(
       status: updatedData.status,
       inspectionGrade: updatedData.inspectionGrade ?? null,
       revisedPriceNZD: updatedData.revisedPriceNZD ?? null,
+      revisedDeviceId: updatedData.revisedDeviceId ?? null,
+      revisedDeviceMake: updatedData.revisedDeviceMake ?? null,
+      revisedDeviceModel: updatedData.revisedDeviceModel ?? null,
+      revisedDeviceStorage: updatedData.revisedDeviceStorage ?? null,
+      revisedAt: serializeTimestamp(updatedData.revisedAt),
+      revisionExpiresAt: serializeTimestamp(updatedData.revisionExpiresAt),
+      returningAt: serializeTimestamp(updatedData.returningAt),
+      returnedAt: serializeTimestamp(updatedData.returnedAt),
     });
   } catch (error) {
     console.error("Error updating quote:", error);

@@ -3,6 +3,7 @@ import { adminDb } from "@/lib/firebase-admin";
 import admin from "@/lib/firebase-admin";
 import { onBulkQuotePaid } from "@/lib/commission-trigger";
 import { requireAdmin } from "@/lib/admin-auth";
+import { checkRevisionExpiry } from "@/lib/revision-expiry";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -22,7 +23,10 @@ function serializeTimestamp(value: unknown): string | null {
 const VALID_TRANSITIONS: Record<string, string[]> = {
   estimated: ["accepted", "cancelled"],
   accepted: ["received", "cancelled"],
-  received: ["inspected", "cancelled"],
+  received: ["revised", "inspected", "cancelled"],
+  revised: ["inspected", "returning", "cancelled"],
+  returning: ["returned", "cancelled"],
+  returned: [],
   inspected: ["paid", "cancelled"],
   paid: [],
   cancelled: [],
@@ -49,7 +53,10 @@ export async function GET(
       );
     }
 
-    const data = quoteDoc.data()!;
+    // Check for revision expiry
+    await checkRevisionExpiry("bulkQuotes", id);
+    const freshBulkDoc = await adminDb.collection("bulkQuotes").doc(id).get();
+    const data = freshBulkDoc.data()!;
 
     // Fetch device lines
     const devicesSnapshot = await adminDb
@@ -108,6 +115,12 @@ export async function GET(
       bankBSB: data.bankBSB ?? null,
       bankAccountNumber: data.bankAccountNumber ?? null,
       bankAccountName: data.bankAccountName ?? null,
+      revisedTotalNZD: data.revisedTotalNZD ?? null,
+      revisedAt: serializeTimestamp(data.revisedAt),
+      revisionExpiresAt: serializeTimestamp(data.revisionExpiresAt),
+      revisionAutoExpired: data.revisionAutoExpired ?? null,
+      returningAt: serializeTimestamp(data.returningAt),
+      returnedAt: serializeTimestamp(data.returnedAt),
       createdAt: serializeTimestamp(data.createdAt),
       acceptedAt: serializeTimestamp(data.acceptedAt),
       receivedAt: serializeTimestamp(data.receivedAt),
@@ -136,7 +149,7 @@ export async function PUT(
     if (adminUser instanceof NextResponse) return adminUser;
     const { id } = await params;
     const body = await request.json();
-    const { status } = body;
+    const { status, revisedTotalNZD } = body;
 
     const quoteDoc = await adminDb.collection("bulkQuotes").doc(id).get();
     if (!quoteDoc.exists) {
@@ -165,6 +178,19 @@ export async function PUT(
       updateData.acceptedAt = admin.firestore.FieldValue.serverTimestamp();
     } else if (status === "received") {
       updateData.receivedAt = admin.firestore.FieldValue.serverTimestamp();
+    } else if (status === "revised") {
+      updateData.revisedAt = admin.firestore.FieldValue.serverTimestamp();
+      const expiryDays = parseInt(process.env.REVISION_EXPIRY_DAYS ?? "7", 10);
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + expiryDays);
+      updateData.revisionExpiresAt = admin.firestore.Timestamp.fromDate(expiresAt);
+      if (revisedTotalNZD !== undefined) {
+        updateData.revisedTotalNZD = revisedTotalNZD;
+      }
+    } else if (status === "returning") {
+      updateData.returningAt = admin.firestore.FieldValue.serverTimestamp();
+    } else if (status === "returned") {
+      updateData.returnedAt = admin.firestore.FieldValue.serverTimestamp();
     } else if (status === "paid") {
       updateData.paidAt = admin.firestore.FieldValue.serverTimestamp();
     }
@@ -190,6 +216,11 @@ export async function PUT(
       businessName: updatedData.businessName,
       totalDevices: updatedData.totalDevices,
       totalIndicativeNZD: updatedData.totalIndicativeNZD,
+      revisedTotalNZD: updatedData.revisedTotalNZD ?? null,
+      revisedAt: serializeTimestamp(updatedData.revisedAt),
+      revisionExpiresAt: serializeTimestamp(updatedData.revisionExpiresAt),
+      returningAt: serializeTimestamp(updatedData.returningAt),
+      returnedAt: serializeTimestamp(updatedData.returnedAt),
       createdAt: serializeTimestamp(updatedData.createdAt),
       acceptedAt: serializeTimestamp(updatedData.acceptedAt),
       receivedAt: serializeTimestamp(updatedData.receivedAt),

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import { requireApiKey, ApiKeyPartner } from "@/lib/api-key-auth";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { checkRevisionExpiry } from "@/lib/revision-expiry";
 
 // ---------------------------------------------------------------------------
 // GET /api/v1/bulk-quotes/[id] — Get bulk quote with line items
@@ -27,6 +28,10 @@ export async function GET(
 
   try {
     const { id } = await params;
+
+    // Check for revision expiry
+    await checkRevisionExpiry("bulkQuotes", id);
+
     const doc = await adminDb.collection("bulkQuotes").doc(id).get();
 
     if (!doc.exists) {
@@ -63,8 +68,13 @@ export async function GET(
       unmatchedCount: data.unmatchedCount,
       status: data.status,
       source: data.source ?? null,
+      revisedTotalNZD: data.revisedTotalNZD ?? null,
       createdAt: serializeTimestamp(data.createdAt),
       acceptedAt: serializeTimestamp(data.acceptedAt),
+      revisedAt: serializeTimestamp(data.revisedAt),
+      revisionExpiresAt: serializeTimestamp(data.revisionExpiresAt),
+      returningAt: serializeTimestamp(data.returningAt),
+      returnedAt: serializeTimestamp(data.returnedAt),
       devices,
     });
   } catch (error) {

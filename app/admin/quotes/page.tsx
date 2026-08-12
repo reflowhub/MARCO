@@ -83,8 +83,11 @@ const STATUSES = [
   "accepted",
   "shipped",
   "received",
+  "revised",
   "inspected",
   "paid",
+  "returning",
+  "returned",
   "cancelled",
 ] as const;
 
@@ -117,6 +120,19 @@ function statusBadgeProps(status: string): {
         className:
           "border-transparent bg-green-600 text-white hover:bg-green-600/80",
       };
+    case "revised":
+      return {
+        variant: "default",
+        className:
+          "border-transparent bg-amber-500 text-white hover:bg-amber-500/80",
+      };
+    case "returning":
+      return {
+        variant: "outline",
+        className: "border-amber-300 text-amber-700",
+      };
+    case "returned":
+      return { variant: "secondary" };
     case "cancelled":
       return { variant: "destructive" };
     default:

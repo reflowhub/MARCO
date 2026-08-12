@@ -31,8 +31,13 @@ import {
   Smartphone,
   User,
   ClipboardCheck,
+  Clock,
+  Package,
 } from "lucide-react";
 import { useFX } from "@/lib/use-fx";
+import DeviceSearchSelect, {
+  SelectedDevice,
+} from "@/components/admin/device-search-select";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -43,8 +48,11 @@ type QuoteStatus =
   | "accepted"
   | "shipped"
   | "received"
+  | "revised"
   | "inspected"
   | "paid"
+  | "returning"
+  | "returned"
   | "cancelled";
 
 type Grade = "A" | "B" | "C" | "D" | "E";
@@ -82,6 +90,15 @@ interface Quote {
   partnerMode?: string;
   inspectionGrade?: Grade;
   revisedPriceNZD?: number;
+  revisedDeviceId?: string;
+  revisedDeviceMake?: string;
+  revisedDeviceModel?: string;
+  revisedDeviceStorage?: string;
+  revisedAt?: string;
+  revisionExpiresAt?: string;
+  revisionAutoExpired?: boolean;
+  returningAt?: string;
+  returnedAt?: string;
   platform?: string;
   geoCountry?: string;
   geoCity?: string;
@@ -92,15 +109,6 @@ interface Quote {
 // Constants
 // ---------------------------------------------------------------------------
 
-const STATUSES: QuoteStatus[] = [
-  "quoted",
-  "accepted",
-  "shipped",
-  "received",
-  "inspected",
-  "paid",
-];
-
 const GRADES: Grade[] = ["A", "B", "C", "D", "E"];
 
 const STATUS_LABELS: Record<QuoteStatus, string> = {
@@ -108,10 +116,27 @@ const STATUS_LABELS: Record<QuoteStatus, string> = {
   accepted: "Accepted",
   shipped: "Shipped",
   received: "Received",
+  revised: "Revised",
   inspected: "Inspected",
   paid: "Paid",
+  returning: "Returning",
+  returned: "Returned",
   cancelled: "Cancelled",
 };
+
+/** Build the stepper steps dynamically based on the path the quote took. */
+function getStepperStatuses(currentStatus: QuoteStatus): QuoteStatus[] {
+  if (
+    currentStatus === "returning" ||
+    currentStatus === "returned"
+  ) {
+    return ["quoted", "accepted", "shipped", "received", "revised", "returning", "returned"];
+  }
+  if (currentStatus === "revised") {
+    return ["quoted", "accepted", "shipped", "received", "revised", "inspected", "paid"];
+  }
+  return ["quoted", "accepted", "shipped", "received", "inspected", "paid"];
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -129,10 +154,16 @@ function getStatusBadgeVariant(
       return "outline";
     case "received":
       return "secondary";
+    case "revised":
+      return "default";
     case "inspected":
       return "default";
     case "paid":
       return "default"; // we override className for green
+    case "returning":
+      return "outline";
+    case "returned":
+      return "secondary";
     case "cancelled":
       return "destructive";
   }
@@ -141,6 +172,12 @@ function getStatusBadgeVariant(
 function getStatusBadgeClassName(status: QuoteStatus): string {
   if (status === "paid") {
     return "border-transparent bg-emerald-600 text-white hover:bg-emerald-600/80";
+  }
+  if (status === "revised") {
+    return "border-transparent bg-amber-500 text-white hover:bg-amber-500/80";
+  }
+  if (status === "returning") {
+    return "border-amber-300 text-amber-700";
   }
   return "";
 }
@@ -158,9 +195,12 @@ function formatDate(iso: string | undefined | null): string {
 
 /** Returns the next logical status for a forward transition, or null if no action. */
 function getNextStatus(current: QuoteStatus): QuoteStatus | null {
-  const idx = STATUSES.indexOf(current);
-  if (idx === -1 || idx >= STATUSES.length - 1) return null;
-  return STATUSES[idx + 1];
+  const FORWARD: QuoteStatus[] = [
+    "quoted", "accepted", "shipped", "received", "inspected", "paid",
+  ];
+  const idx = FORWARD.indexOf(current);
+  if (idx === -1 || idx >= FORWARD.length - 1) return null;
+  return FORWARD[idx + 1];
 }
 
 /** Label for the primary action button based on current status. */
@@ -176,6 +216,8 @@ function getActionLabel(current: QuoteStatus): string | null {
       return "Begin Inspection";
     case "inspected":
       return "Mark Paid";
+    case "returning":
+      return "Mark Returned";
     default:
       return null;
   }
@@ -215,6 +257,10 @@ export default function QuoteDetailPage() {
   const [inspectionGrade, setInspectionGrade] = useState<Grade | "">("");
   const [revisedPrice, setRevisedPrice] = useState("");
   const [inspectionLoading, setInspectionLoading] = useState(false);
+  const [changeDevice, setChangeDevice] = useState(false);
+  const [revisedDevice, setRevisedDevice] = useState<SelectedDevice | null>(
+    null
+  );
 
   // ---- fetch quote --------------------------------------------------------
   const fetchQuote = useCallback(() => {
@@ -255,6 +301,16 @@ export default function QuoteDetailPage() {
   // ---- advance status (non-inspection) ------------------------------------
   const handleAdvanceStatus = async () => {
     if (!quote) return;
+    // "returning" transitions to "returned"
+    if (quote.status === "returning") {
+      setActionLoading(true);
+      try {
+        await updateQuote({ status: "returned" });
+      } finally {
+        setActionLoading(false);
+      }
+      return;
+    }
     const next = getNextStatus(quote.status);
     if (!next || quote.status === "received") return; // "received" uses inspection dialog
     setActionLoading(true);
@@ -281,6 +337,8 @@ export default function QuoteDetailPage() {
     if (!quote) return;
     setInspectionGrade("");
     setRevisedPrice("");
+    setChangeDevice(false);
+    setRevisedDevice(null);
     setInspectionOpen(true);
   };
 
@@ -289,17 +347,29 @@ export default function QuoteDetailPage() {
     if (!quote || !inspectionGrade) return;
     setInspectionLoading(true);
     try {
+      const hasMismatch =
+        gradeChanged || (changeDevice && revisedDevice !== null);
+      const targetStatus = hasMismatch ? "revised" : "inspected";
+
       const body: Record<string, unknown> = {
-        status: "inspected",
+        status: targetStatus,
         inspectionGrade,
       };
-      // Only include revised price if the grade differs from original
-      if (inspectionGrade !== quote.grade && revisedPrice !== "") {
+
+      if (hasMismatch && revisedPrice !== "") {
         const parsed = parseFloat(revisedPrice);
         if (!isNaN(parsed) && parsed >= 0) {
           body.revisedPriceNZD = parsed;
         }
       }
+
+      if (changeDevice && revisedDevice) {
+        body.revisedDeviceId = revisedDevice.id;
+        body.revisedDeviceMake = revisedDevice.make;
+        body.revisedDeviceModel = revisedDevice.model;
+        body.revisedDeviceStorage = revisedDevice.storage;
+      }
+
       const ok = await updateQuote(body);
       if (ok) setInspectionOpen(false);
     } finally {
@@ -309,10 +379,14 @@ export default function QuoteDetailPage() {
 
   const gradeChanged =
     inspectionGrade !== "" && !!quote && inspectionGrade !== quote.grade;
+  const hasMismatch =
+    gradeChanged || (changeDevice && revisedDevice !== null);
 
   // ---- determine if the quote is in a terminal state ----------------------
   const isTerminal =
-    quote?.status === "paid" || quote?.status === "cancelled";
+    quote?.status === "paid" ||
+    quote?.status === "cancelled" ||
+    quote?.status === "returned";
 
   // ---- render: loading ----------------------------------------------------
   if (loading) {
@@ -468,6 +542,18 @@ export default function QuoteDetailPage() {
                     )}
                   </dd>
                 </div>
+                {quote.revisedDeviceId && (
+                  <div className="flex justify-between">
+                    <dt className="text-muted-foreground">Revised Device</dt>
+                    <dd className="font-medium text-right">
+                      {quote.revisedDeviceMake} {quote.revisedDeviceModel}{" "}
+                      {quote.revisedDeviceStorage}
+                      <span className="ml-2 text-xs text-amber-600">
+                        (changed)
+                      </span>
+                    </dd>
+                  </div>
+                )}
                 {quote.revisedPriceNZD !== undefined &&
                   quote.revisedPriceNZD !== null && (
                     <div className="flex justify-between">
@@ -655,8 +741,8 @@ export default function QuoteDetailPage() {
         {/* Progress stepper */}
         <div className="mb-6 overflow-x-auto">
           <div className="flex items-center gap-1 min-w-max">
-            {STATUSES.map((step, idx) => {
-              const currentIdx = STATUSES.indexOf(quote.status);
+            {getStepperStatuses(quote.status).map((step, idx, steps) => {
+              const currentIdx = steps.indexOf(quote.status);
               const isCancelled = quote.status === "cancelled";
               const isCompleted = !isCancelled && currentIdx > idx;
               const isCurrent = !isCancelled && quote.status === step;
@@ -753,6 +839,38 @@ export default function QuoteDetailPage() {
             </>
           )}
 
+          {/* Revised — waiting for response */}
+          {quote.status === "revised" && (
+            <>
+              <div className="flex items-center gap-2 text-sm text-amber-600">
+                <Clock className="h-4 w-4" />
+                Waiting for customer/partner response
+                {quote.revisionExpiresAt && (
+                  <span className="text-muted-foreground">
+                    (expires {formatDate(quote.revisionExpiresAt)})
+                  </span>
+                )}
+              </div>
+              <Button
+                variant="secondary"
+                onClick={async () => {
+                  setActionLoading(true);
+                  try {
+                    await updateQuote({ status: "inspected" });
+                  } finally {
+                    setActionLoading(false);
+                  }
+                }}
+                disabled={actionLoading}
+              >
+                {actionLoading && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Force Accept (on behalf of customer)
+              </Button>
+            </>
+          )}
+
           {/* Terminal state messages */}
           {quote.status === "paid" && (
             <div className="flex items-center gap-2 text-sm text-emerald-600">
@@ -764,6 +882,12 @@ export default function QuoteDetailPage() {
             <div className="flex items-center gap-2 text-sm text-destructive">
               <XCircle className="h-4 w-4" />
               This quote has been cancelled.
+            </div>
+          )}
+          {quote.status === "returned" && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Package className="h-4 w-4" />
+              Device has been returned to customer.
             </div>
           )}
 
@@ -788,8 +912,9 @@ export default function QuoteDetailPage() {
           <DialogHeader>
             <DialogTitle>Device Inspection</DialogTitle>
             <DialogDescription>
-              Inspect the device and assign a grade. If the grade differs from
-              the original ({quote.grade}), you can set a revised price.
+              Inspect the device and assign a grade. If the grade or device
+              differs from the original, the quote will be sent for
+              customer/partner approval with a revised price.
             </DialogDescription>
           </DialogHeader>
 
@@ -827,8 +952,32 @@ export default function QuoteDetailPage() {
               </Select>
             </div>
 
-            {/* Revised price — only shown if grade changed */}
-            {gradeChanged && (
+            {/* Device change toggle */}
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="change-device"
+                checked={changeDevice}
+                onChange={(e) => {
+                  setChangeDevice(e.target.checked);
+                  if (!e.target.checked) setRevisedDevice(null);
+                }}
+                className="rounded border-input"
+              />
+              <Label htmlFor="change-device" className="text-sm font-normal">
+                Device model/storage is different from quoted
+              </Label>
+            </div>
+
+            {changeDevice && (
+              <DeviceSearchSelect
+                value={revisedDevice}
+                onChange={setRevisedDevice}
+              />
+            )}
+
+            {/* Revised price — shown if any mismatch detected */}
+            {hasMismatch && (
               <div className="grid gap-2">
                 <Label htmlFor="revised-price">
                   Revised Price (NZD)
@@ -836,8 +985,11 @@ export default function QuoteDetailPage() {
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
                   <p className="text-xs text-muted-foreground">
-                    Grade changed from {quote.grade} to {inspectionGrade}.
-                    Enter the revised quote price.
+                    {gradeChanged && changeDevice && revisedDevice
+                      ? `Grade changed from ${quote.grade} to ${inspectionGrade} and device changed. Enter the revised quote price.`
+                      : gradeChanged
+                      ? `Grade changed from ${quote.grade} to ${inspectionGrade}. Enter the revised quote price.`
+                      : `Device changed from original. Enter the revised quote price.`}
                   </p>
                 </div>
                 <Input
@@ -866,7 +1018,8 @@ export default function QuoteDetailPage() {
               disabled={
                 !inspectionGrade ||
                 inspectionLoading ||
-                (gradeChanged && revisedPrice === "")
+                (hasMismatch && revisedPrice === "") ||
+                (changeDevice && !revisedDevice)
               }
             >
               {inspectionLoading && (

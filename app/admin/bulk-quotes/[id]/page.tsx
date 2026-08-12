@@ -39,6 +39,7 @@ import {
   Package,
   User,
   ClipboardCheck,
+  Clock,
 } from "lucide-react";
 import { useFX } from "@/lib/use-fx";
 
@@ -50,8 +51,11 @@ type BulkQuoteStatus =
   | "estimated"
   | "accepted"
   | "received"
+  | "revised"
   | "inspected"
   | "paid"
+  | "returning"
+  | "returned"
   | "cancelled";
 
 type Grade = "A" | "B" | "C" | "D" | "E";
@@ -89,6 +93,12 @@ interface BulkQuote {
   bankBSB: string | null;
   bankAccountNumber: string | null;
   bankAccountName: string | null;
+  revisedTotalNZD: number | null;
+  revisedAt: string | null;
+  revisionExpiresAt: string | null;
+  revisionAutoExpired: boolean | null;
+  returningAt: string | null;
+  returnedAt: string | null;
   createdAt: string | null;
   acceptedAt: string | null;
   receivedAt: string | null;
@@ -100,24 +110,39 @@ interface BulkQuote {
 // Constants
 // ---------------------------------------------------------------------------
 
-const STATUSES: BulkQuoteStatus[] = [
-  "estimated",
-  "accepted",
-  "received",
-  "inspected",
-  "paid",
-];
-
 const GRADES: Grade[] = ["A", "B", "C", "D", "E"];
 
 const STATUS_LABELS: Record<BulkQuoteStatus, string> = {
   estimated: "Estimated",
   accepted: "Accepted",
   received: "Received",
+  revised: "Revised",
   inspected: "Inspected",
   paid: "Paid",
+  returning: "Returning",
+  returned: "Returned",
   cancelled: "Cancelled",
 };
+
+/** Build stepper steps dynamically based on the path taken. */
+function getStepperStatuses(current: BulkQuoteStatus): BulkQuoteStatus[] {
+  const base: BulkQuoteStatus[] = ["estimated", "accepted", "received"];
+  if (
+    current === "revised" ||
+    current === "returning" ||
+    current === "returned"
+  ) {
+    base.push("revised");
+    if (current === "returning" || current === "returned") {
+      base.push("returning");
+      if (current === "returned") base.push("returned");
+    }
+    return base;
+  }
+  // Normal path
+  base.push("inspected", "paid");
+  return base;
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -133,10 +158,16 @@ function getStatusBadgeVariant(
       return "secondary";
     case "received":
       return "outline";
+    case "revised":
+      return "default";
     case "inspected":
       return "default";
     case "paid":
       return "default";
+    case "returning":
+      return "outline";
+    case "returned":
+      return "secondary";
     case "cancelled":
       return "destructive";
   }
@@ -145,6 +176,10 @@ function getStatusBadgeVariant(
 function getStatusBadgeClassName(status: BulkQuoteStatus): string {
   if (status === "paid")
     return "border-transparent bg-emerald-600 text-white hover:bg-emerald-600/80";
+  if (status === "revised")
+    return "border-transparent bg-amber-500 text-white hover:bg-amber-500/80";
+  if (status === "returning")
+    return "border-amber-300 text-amber-700";
   return "";
 }
 
@@ -167,9 +202,18 @@ function formatCurrency(value: number): string {
 }
 
 function getNextStatus(current: BulkQuoteStatus): BulkQuoteStatus | null {
-  const idx = STATUSES.indexOf(current);
-  if (idx === -1 || idx >= STATUSES.length - 1) return null;
-  return STATUSES[idx + 1];
+  switch (current) {
+    case "estimated":
+      return "accepted";
+    case "accepted":
+      return "received";
+    case "received":
+      return "inspected";
+    case "inspected":
+      return "paid";
+    default:
+      return null;
+  }
 }
 
 function getActionLabel(current: BulkQuoteStatus): string | null {
@@ -248,6 +292,18 @@ export default function BulkQuoteDetailPage() {
   // Advance status
   const handleAdvanceStatus = async () => {
     if (!quote) return;
+
+    // Handle returning → returned
+    if (quote.status === "returning") {
+      setActionLoading(true);
+      try {
+        await updateStatus("returned");
+      } finally {
+        setActionLoading(false);
+      }
+      return;
+    }
+
     const next = getNextStatus(quote.status);
     if (!next) return;
     setActionLoading(true);
@@ -312,7 +368,9 @@ export default function BulkQuoteDetailPage() {
   };
 
   const isTerminal =
-    quote?.status === "paid" || quote?.status === "cancelled";
+    quote?.status === "paid" ||
+    quote?.status === "cancelled" ||
+    quote?.status === "returned";
 
   const inspectedCount =
     quote?.devices.filter((d) => d.actualGrade).length ?? 0;
@@ -415,6 +473,14 @@ export default function BulkQuoteDetailPage() {
                 {quote.matchedCount} / {quote.unmatchedCount}
               </dd>
             </div>
+            {quote.revisedTotalNZD !== null && (
+              <div className="flex justify-between">
+                <dt className="text-muted-foreground">Revised Total</dt>
+                <dd className="font-medium text-amber-600">
+                  {fxFormatPrice(quote.revisedTotalNZD, "AUD")}
+                </dd>
+              </div>
+            )}
 
             <div className="my-1 h-px bg-border" />
 
@@ -432,6 +498,24 @@ export default function BulkQuoteDetailPage() {
               <div className="flex justify-between">
                 <dt className="text-muted-foreground">Received</dt>
                 <dd>{formatDate(quote.receivedAt)}</dd>
+              </div>
+            )}
+            {quote.revisedAt && (
+              <div className="flex justify-between">
+                <dt className="text-muted-foreground">Revised</dt>
+                <dd>{formatDate(quote.revisedAt)}</dd>
+              </div>
+            )}
+            {quote.returningAt && (
+              <div className="flex justify-between">
+                <dt className="text-muted-foreground">Return Initiated</dt>
+                <dd>{formatDate(quote.returningAt)}</dd>
+              </div>
+            )}
+            {quote.returnedAt && (
+              <div className="flex justify-between">
+                <dt className="text-muted-foreground">Returned</dt>
+                <dd>{formatDate(quote.returnedAt)}</dd>
               </div>
             )}
             {quote.paidAt && (
@@ -553,8 +637,8 @@ export default function BulkQuoteDetailPage() {
         {/* Progress stepper */}
         <div className="mb-6 overflow-x-auto">
           <div className="flex items-center gap-1 min-w-max">
-            {STATUSES.map((step, idx) => {
-              const currentIdx = STATUSES.indexOf(quote.status);
+            {getStepperStatuses(quote.status).map((step, idx, arr) => {
+              const currentIdx = arr.indexOf(quote.status);
               const isCancelled = quote.status === "cancelled";
               const isCompleted = !isCancelled && currentIdx > idx;
               const isCurrent = !isCancelled && quote.status === step;
@@ -643,6 +727,72 @@ export default function BulkQuoteDetailPage() {
           </div>
         )}
 
+        {/* Revised — waiting for response */}
+        {quote.status === "revised" && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/30">
+            <div className="flex items-start gap-3">
+              <Clock className="h-5 w-5 shrink-0 text-amber-600 mt-0.5" />
+              <div className="flex-1 space-y-1">
+                <p className="text-sm font-medium">
+                  Waiting for customer/partner response
+                </p>
+                {quote.revisedTotalNZD !== null && (
+                  <p className="text-sm text-muted-foreground">
+                    Revised total: {formatCurrency(quote.revisedTotalNZD)}
+                  </p>
+                )}
+                {quote.revisionExpiresAt && (
+                  <p className="text-xs text-muted-foreground">
+                    Response deadline: {formatDate(quote.revisionExpiresAt)}
+                    {quote.revisionAutoExpired && (
+                      <span className="ml-2 text-amber-600 font-medium">
+                        (auto-expired)
+                      </span>
+                    )}
+                  </p>
+                )}
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={async () => {
+                  setActionLoading(true);
+                  try {
+                    await updateStatus("inspected");
+                  } finally {
+                    setActionLoading(false);
+                  }
+                }}
+                disabled={actionLoading}
+              >
+                {actionLoading && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Force Accept
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Returning — mark as returned */}
+        {quote.status === "returning" && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/30">
+            <div className="flex items-center gap-3">
+              <Package className="h-5 w-5 text-amber-600" />
+              <div className="flex-1">
+                <p className="text-sm font-medium">
+                  Device(s) being returned to customer/partner
+                </p>
+                {quote.returningAt && (
+                  <p className="text-xs text-muted-foreground">
+                    Return initiated: {formatDate(quote.returningAt)}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Action buttons */}
         <div className="flex flex-wrap items-center gap-3">
           {!isTerminal && getActionLabel(quote.status) && (
@@ -660,10 +810,25 @@ export default function BulkQuoteDetailPage() {
             </Button>
           )}
 
+          {quote.status === "returning" && (
+            <Button onClick={handleAdvanceStatus} disabled={actionLoading}>
+              {actionLoading && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Mark Returned
+            </Button>
+          )}
+
           {quote.status === "paid" && (
             <div className="flex items-center gap-2 text-sm text-emerald-600">
               <CheckCircle2 className="h-4 w-4" />
               Bulk quote completed — payment has been made.
+            </div>
+          )}
+          {quote.status === "returned" && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Package className="h-4 w-4" />
+              Device(s) returned — trade-in closed.
             </div>
           )}
           {quote.status === "cancelled" && (
