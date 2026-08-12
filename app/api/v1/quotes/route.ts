@@ -164,7 +164,6 @@ export async function POST(request: NextRequest) {
         quotePrice: quotePriceDisplay,
         publicPrice: publicPriceDisplay,
         displayCurrency: currency,
-        partnerRateDiscount: discount,
         status: "quoted",
         source: "api",
         createdAt: now.toISOString(),

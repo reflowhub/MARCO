@@ -62,8 +62,6 @@ export async function GET(
       matchedCount: data.matchedCount,
       unmatchedCount: data.unmatchedCount,
       status: data.status,
-      partnerMode: data.partnerMode,
-      partnerRateDiscount: data.partnerRateDiscount,
       source: data.source ?? null,
       createdAt: serializeTimestamp(data.createdAt),
       acceptedAt: serializeTimestamp(data.acceptedAt),

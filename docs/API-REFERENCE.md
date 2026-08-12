@@ -152,15 +152,13 @@ curl -H "X-API-Key: rhx_your_key" \
     },
     "C": null
   },
-  "displayCurrency": "AUD",
-  "partnerRateDiscount": 10
+  "displayCurrency": "AUD"
 }
 ```
 
 **Notes:**
 - `publicPrice*` is the public-facing price
-- `partnerPrice*` is your discounted buy price
-- `partnerRateDiscount` is the discount percentage applied (e.g. 10 = 10% off public price)
+- `partnerPrice*` is your buy price
 
 ---
 
@@ -202,7 +200,6 @@ curl -X POST \
   "quotePrice": 580,
   "publicPrice": 645,
   "displayCurrency": "AUD",
-  "partnerRateDiscount": 10,
   "status": "quoted",
   "source": "api",
   "createdAt": "2026-08-12T02:30:00.000Z",
@@ -249,7 +246,6 @@ curl -H "X-API-Key: rhx_your_key" \
   "publicPriceNZD": 700,
   "quotePrice": 580,
   "displayCurrency": "AUD",
-  "partnerRateDiscount": 10,
   "status": "quoted",
   "source": "api",
   "imei": null,
@@ -506,8 +502,6 @@ curl -H "X-API-Key: rhx_your_key" \
   "matchedCount": 2,
   "unmatchedCount": 0,
   "status": "estimated",
-  "partnerMode": "B",
-  "partnerRateDiscount": 10,
   "source": "api",
   "createdAt": "2026-08-12T02:30:00.000Z",
   "acceptedAt": null,

@@ -97,7 +97,6 @@ export async function GET(
       category,
       grades,
       displayCurrency: currency,
-      partnerRateDiscount: discount,
     });
   } catch (error) {
     console.error("Error in v1 device price:", error);
