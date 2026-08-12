@@ -228,7 +228,7 @@ export async function PUT(
     // Set timestamps for revision-related transitions
     if (updateData.status === "revised") {
       updateData.revisedAt = admin.firestore.FieldValue.serverTimestamp();
-      const expiryDays = parseInt(process.env.REVISION_EXPIRY_DAYS ?? "7", 10);
+      const expiryDays = parseInt(process.env.REVISION_EXPIRY_DAYS ?? "14", 10);
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + expiryDays);
       updateData.revisionExpiresAt = admin.firestore.Timestamp.fromDate(expiresAt);
