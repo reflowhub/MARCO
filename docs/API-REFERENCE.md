@@ -269,8 +269,31 @@ curl -H "X-API-Key: rhx_your_key" \
 |--------|---------|
 | `quoted` | Active quote, waiting for acceptance |
 | `accepted` | Customer accepted, device expected |
+| `shipped` | Device shipped to RHEX |
 | `received` | Device received by RHEX |
-| `completed` | Trade-in completed, payment processed |
+| `revised` | Device inspected, quote revised — awaiting response |
+| `inspected` | Inspection complete (or revision accepted), awaiting payment |
+| `paid` | Trade-in completed, payment processed |
+| `returning` | Revision rejected or expired, device being returned |
+| `returned` | Device returned to customer, trade-in closed |
+| `cancelled` | Quote cancelled |
+
+**Revision Fields (present when status is `revised` or later):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `inspectionGrade` | string \| null | Grade assigned during inspection |
+| `revisedPriceNZD` | number \| null | Revised price in NZD |
+| `revisedDeviceId` | string \| null | Different device ID (if model/storage mismatch) |
+| `revisedDeviceMake` | string \| null | Revised device make |
+| `revisedDeviceModel` | string \| null | Revised device model |
+| `revisedDeviceStorage` | string \| null | Revised device storage |
+| `revisedAt` | string \| null | ISO timestamp when revision was created |
+| `revisionExpiresAt` | string \| null | ISO timestamp — deadline to respond |
+| `returningAt` | string \| null | ISO timestamp when return was initiated |
+| `returnedAt` | string \| null | ISO timestamp when device was returned |
+
+When a quote is in `revised` status, the partner must respond before `revisionExpiresAt` (default: 7 days). If no response is received, the quote auto-transitions to `returning` and the device is sent back.
 
 ---
 
@@ -374,7 +397,76 @@ curl -X PUT \
 
 ---
 
-### 6. Create Bulk Quote
+### 6. Respond to Revised Quote
+
+When a device is inspected and the condition, model, or storage differs from the original quote, RHEX will revise the quote. The quote status changes to `revised` and you must accept or reject the new offer before the `revisionExpiresAt` deadline.
+
+```
+PUT /api/v1/quotes/{id}/respond
+```
+
+**Path Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `id` | string | Quote ID |
+
+**Request Body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `action` | string | Yes | `"accept"` or `"reject"` |
+
+**Example Request (Accept):**
+
+```bash
+curl -X PUT \
+  -H "X-API-Key: rhx_your_key" \
+  -H "Content-Type: application/json" \
+  -d '{"action": "accept"}' \
+  "https://rhex.app/api/v1/quotes/quote_xyz789/respond"
+```
+
+**Example Response:**
+
+```json
+{
+  "id": "quote_xyz789",
+  "status": "inspected"
+}
+```
+
+**Example Request (Reject):**
+
+```bash
+curl -X PUT \
+  -H "X-API-Key: rhx_your_key" \
+  -H "Content-Type: application/json" \
+  -d '{"action": "reject"}' \
+  "https://rhex.app/api/v1/quotes/quote_xyz789/respond"
+```
+
+**Example Response:**
+
+```json
+{
+  "id": "quote_xyz789",
+  "status": "returning"
+}
+```
+
+**Behaviour:**
+- `accept` — Accepts the revised price. Status moves to `inspected`, then RHEX processes payment.
+- `reject` — Rejects the revised price. Status moves to `returning` and the device is shipped back.
+- If no response is received before `revisionExpiresAt`, the quote auto-transitions to `returning`.
+
+**Validation Rules:**
+- Quote must be in `revised` status
+- Must not be past the `revisionExpiresAt` deadline
+
+---
+
+### 7. Create Bulk Quote
 
 Create a bulk quote from either a CSV manifest or a device list. Useful for quoting multiple devices at once.
 
@@ -464,7 +556,7 @@ curl -X POST \
 
 ---
 
-### 7. Get Bulk Quote
+### 8. Get Bulk Quote
 
 Retrieve a bulk quote with all line items.
 
@@ -503,8 +595,13 @@ curl -H "X-API-Key: rhx_your_key" \
   "unmatchedCount": 0,
   "status": "estimated",
   "source": "api",
+  "revisedTotalNZD": null,
   "createdAt": "2026-08-12T02:30:00.000Z",
   "acceptedAt": null,
+  "revisedAt": null,
+  "revisionExpiresAt": null,
+  "returningAt": null,
+  "returnedAt": null,
   "devices": [
     {
       "id": "line_001",
@@ -523,6 +620,68 @@ curl -H "X-API-Key: rhx_your_key" \
 }
 ```
 
+**Revision Fields (present when status is `revised` or later):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `revisedTotalNZD` | number \| null | Revised total price in NZD |
+| `revisedAt` | string \| null | ISO timestamp when revision was created |
+| `revisionExpiresAt` | string \| null | ISO timestamp — deadline to respond |
+| `returningAt` | string \| null | ISO timestamp when return was initiated |
+| `returnedAt` | string \| null | ISO timestamp when devices were returned |
+
+---
+
+### 9. Respond to Revised Bulk Quote
+
+When a bulk quote is revised after inspection, respond to accept or reject the new total.
+
+```
+PUT /api/v1/bulk-quotes/{id}/respond
+```
+
+**Path Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `id` | string | Bulk quote ID |
+
+**Request Body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `action` | string | Yes | `"accept"` or `"reject"` |
+
+**Example Request:**
+
+```bash
+curl -X PUT \
+  -H "X-API-Key: rhx_your_key" \
+  -H "Content-Type: application/json" \
+  -d '{"action": "accept"}' \
+  "https://rhex.app/api/v1/bulk-quotes/bulk_abc123/respond"
+```
+
+**Example Response:**
+
+```json
+{
+  "id": "bulk_abc123",
+  "status": "inspected"
+}
+```
+
+**Behaviour:**
+
+- `accept` — Accepts the revised total. Status moves to `inspected`, then RHEX processes payment.
+- `reject` — Rejects the revised total. Status moves to `returning` and devices are shipped back.
+- If no response is received before `revisionExpiresAt`, the bulk quote auto-transitions to `returning`.
+
+**Validation Rules:**
+
+- Bulk quote must be in `revised` status
+- Must not be past the `revisionExpiresAt` deadline
+
 ---
 
 ## Typical Integration Flow
@@ -532,8 +691,11 @@ curl -H "X-API-Key: rhx_your_key" \
 3. **Create quote** — `POST /api/v1/quotes` when the customer selects a device and grade
 4. **Collect customer info** — your frontend collects name, email, phone, address, payment details
 5. **Accept quote** — `PUT /api/v1/quotes/{id}/accept` to lock in the trade-in
-6. **Track status** — `GET /api/v1/quotes/{id}` to poll for status updates (quoted → accepted → received → completed)
+6. **Track status** — `GET /api/v1/quotes/{id}` to poll for status updates
+7. **Handle revisions** — If the quote moves to `revised` status, call `PUT /api/v1/quotes/{id}/respond` with `accept` or `reject`
 
 For bulk operations (e.g. processing a manifest of devices from an IT refresh):
+
 1. **Create bulk quote** — `POST /api/v1/bulk-quotes` with CSV or device list
 2. **Review results** — `GET /api/v1/bulk-quotes/{id}` to see matched devices and pricing
+3. **Handle revisions** — If revised after inspection, call `PUT /api/v1/bulk-quotes/{id}/respond`
