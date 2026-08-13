@@ -126,7 +126,12 @@ export default function ImportDevicesPage() {
 
     const reader = new FileReader();
     reader.onload = (e) => {
-      const text = e.target?.result as string;
+      const raw = e.target?.result as string;
+      // Strip empty/comma-only rows (common in Excel exports) before storing
+      const text = raw
+        .split(/\r?\n/)
+        .filter((line) => !/^[\s,]*$/.test(line))
+        .join("\n");
       setCsvContent(text);
 
       const { headers: h, rows } = parseCSV(text);
