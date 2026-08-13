@@ -42,7 +42,9 @@ interface ImportResult {
 // ---------------------------------------------------------------------------
 
 function parseCSV(text: string): { headers: string[]; rows: ParsedRow[] } {
-  const lines = text.split(/\r?\n/).filter((line) => line.trim() !== "");
+  const lines = text
+    .split(/\r?\n/)
+    .filter((line) => !/^[\s,]*$/.test(line));
   if (lines.length === 0) return { headers: [], rows: [] };
 
   const parseLine = (line: string): string[] => {

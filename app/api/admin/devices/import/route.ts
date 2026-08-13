@@ -16,7 +16,7 @@ function parseCSV(csv: string): { rows: ParsedRow[]; hasDeviceId: boolean; error
   const lines = csv
     .split(/\r?\n/)
     .map((line) => line.trim())
-    .filter((line) => line.length > 0);
+    .filter((line) => !/^[,\s]*$/.test(line));
 
   if (lines.length === 0) {
     errors.push("CSV is empty");
