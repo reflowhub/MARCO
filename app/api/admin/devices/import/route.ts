@@ -14,6 +14,7 @@ interface ParsedRow {
 function parseCSV(csv: string): { rows: ParsedRow[]; hasDeviceId: boolean; errors: string[] } {
   const errors: string[] = [];
   const lines = csv
+    .replace(/^\uFEFF/, "") // Strip UTF-8 BOM
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter((line) => !/^[,\s]*$/.test(line));

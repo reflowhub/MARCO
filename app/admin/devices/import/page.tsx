@@ -33,7 +33,7 @@ interface ParsedRow {
 }
 
 interface ImportResult {
-  importedCount: number;
+  imported: number;
   errors: string[];
 }
 
@@ -206,7 +206,7 @@ export default function ImportDevicesPage() {
       const data: ImportResult = await res.json();
       setResult(data);
     } catch {
-      setResult({ importedCount: 0, errors: ["An unexpected error occurred."] });
+      setResult({ imported: 0, errors: ["An unexpected error occurred."] });
     } finally {
       setImporting(false);
     }
@@ -344,7 +344,7 @@ export default function ImportDevicesPage() {
       {result && (
         <div className="mt-6 space-y-4">
           {/* Success banner */}
-          {result.importedCount > 0 && (
+          {result.imported > 0 && (
             <div className="flex items-start gap-3 rounded-lg border border-green-200 bg-green-50 p-4">
               <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-green-600" />
               <div>
@@ -352,8 +352,8 @@ export default function ImportDevicesPage() {
                   Import successful
                 </p>
                 <p className="mt-1 text-sm text-green-700">
-                  {result.importedCount} device
-                  {result.importedCount !== 1 ? "s" : ""} imported successfully.
+                  {result.imported} device
+                  {result.imported !== 1 ? "s" : ""} imported successfully.
                 </p>
               </div>
             </div>
@@ -365,7 +365,7 @@ export default function ImportDevicesPage() {
               <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
               <div>
                 <p className="text-sm font-medium text-destructive">
-                  {result.importedCount > 0
+                  {result.imported > 0
                     ? "Some rows had errors"
                     : "Import failed"}
                 </p>
