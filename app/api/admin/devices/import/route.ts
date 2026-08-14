@@ -154,16 +154,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Delete existing devices in this category when replacing
+    // Delete existing devices when replacing — includes devices with matching
+    // category AND legacy devices with no category field
     let deleted = 0;
     if (replace) {
-      const existingSnapshot = await adminDb
-        .collection("devices")
-        .where("category", "==", deviceCategory)
-        .get();
+      const allDevices = await adminDb.collection("devices").get();
+      const toDelete = allDevices.docs.filter((doc) => {
+        const cat = doc.data().category;
+        return cat === deviceCategory || !cat;
+      });
       const DEL_BATCH_SIZE = 400;
-      for (let i = 0; i < existingSnapshot.docs.length; i += DEL_BATCH_SIZE) {
-        const chunk = existingSnapshot.docs.slice(i, i + DEL_BATCH_SIZE);
+      for (let i = 0; i < toDelete.length; i += DEL_BATCH_SIZE) {
+        const chunk = toDelete.slice(i, i + DEL_BATCH_SIZE);
         const batch = adminDb.batch();
         chunk.forEach((doc) => batch.delete(doc.ref));
         await batch.commit();
