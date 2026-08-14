@@ -123,45 +123,52 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const replace = body.replace === true;
     const { rows, hasDeviceId, errors } = parseCSV(csv);
 
     if (rows.length === 0) {
       return NextResponse.json(
-        { imported: 0, errors: errors.length > 0 ? errors : ["No valid rows found in CSV"] },
+        { imported: 0, deleted: 0, errors: errors.length > 0 ? errors : ["No valid rows found in CSV"] },
         { status: 400 }
       );
     }
 
-    // Check for duplicate devices against existing DB and within CSV
-    const existingSnapshot = await adminDb.collection("devices").get();
-    const existingKeys = new Set<string>();
-    existingSnapshot.docs.forEach((doc) => {
-      const d = doc.data();
-      const key = `${String(d.make ?? "").toLowerCase().trim()}|${String(d.model ?? "").toLowerCase().trim()}|${String(d.storage ?? "").toLowerCase().trim()}`;
-      existingKeys.add(key);
-    });
-
+    // Deduplicate within CSV
     const validRows: ParsedRow[] = [];
+    const seenKeys = new Set<string>();
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       const key = `${row.make.toLowerCase().trim()}|${row.model.toLowerCase().trim()}|${row.storage.toLowerCase().trim()}`;
-      if (existingKeys.has(key)) {
-        errors.push(`Row ${i + 2}: duplicate device (${row.make} ${row.model} ${row.storage}) already exists`);
-        continue;
-      }
-      // Also check within CSV
-      if (validRows.some((r) => `${r.make.toLowerCase().trim()}|${r.model.toLowerCase().trim()}|${r.storage.toLowerCase().trim()}` === key)) {
+      if (seenKeys.has(key)) {
         errors.push(`Row ${i + 2}: duplicate of another row in CSV (${row.make} ${row.model} ${row.storage})`);
         continue;
       }
+      seenKeys.add(key);
       validRows.push(row);
     }
 
     if (validRows.length === 0) {
       return NextResponse.json(
-        { imported: 0, errors: errors.length > 0 ? errors : ["No valid rows found in CSV"] },
+        { imported: 0, deleted: 0, errors: errors.length > 0 ? errors : ["No valid rows found in CSV"] },
         { status: 400 }
       );
+    }
+
+    // Delete existing devices in this category when replacing
+    let deleted = 0;
+    if (replace) {
+      const existingSnapshot = await adminDb
+        .collection("devices")
+        .where("category", "==", deviceCategory)
+        .get();
+      const DEL_BATCH_SIZE = 400;
+      for (let i = 0; i < existingSnapshot.docs.length; i += DEL_BATCH_SIZE) {
+        const chunk = existingSnapshot.docs.slice(i, i + DEL_BATCH_SIZE);
+        const batch = adminDb.batch();
+        chunk.forEach((doc) => batch.delete(doc.ref));
+        await batch.commit();
+        deleted += chunk.length;
+      }
     }
 
     let imported = 0;
@@ -211,7 +218,7 @@ export async function POST(request: NextRequest) {
     }
 
     invalidateDeviceCache();
-    return NextResponse.json({ imported, errors });
+    return NextResponse.json({ imported, deleted, errors });
   } catch (error) {
     console.error("Error importing devices:", error);
     return NextResponse.json(

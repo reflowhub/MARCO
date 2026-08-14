@@ -34,6 +34,7 @@ interface ParsedRow {
 
 interface ImportResult {
   imported: number;
+  deleted?: number;
   errors: string[];
 }
 
@@ -110,6 +111,7 @@ export default function ImportDevicesPage() {
 
   // ---- import state -------------------------------------------------------
   const [importing, setImporting] = useState(false);
+  const [replaceAll, setReplaceAll] = useState(true);
   const [result, setResult] = useState<ImportResult | null>(null);
 
   // ---- drag state ---------------------------------------------------------
@@ -201,7 +203,7 @@ export default function ImportDevicesPage() {
       const res = await fetch("/api/admin/devices/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ csv: csvContent, category }),
+        body: JSON.stringify({ csv: csvContent, category, replace: replaceAll }),
       });
       const data: ImportResult = await res.json();
       setResult(data);
@@ -324,9 +326,21 @@ export default function ImportDevicesPage() {
             </Table>
           </div>
 
-          {/* Import button */}
+          {/* Import options & button */}
           {!result && (
-            <div className="mt-6 flex justify-end">
+            <div className="mt-6 flex items-center justify-between">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={replaceAll}
+                  onChange={(e) => setReplaceAll(e.target.checked)}
+                  className="h-4 w-4 rounded border-border"
+                />
+                <span>Replace existing {category.toLowerCase()} devices</span>
+                <span className="text-muted-foreground">
+                  (deletes all current devices in this category first)
+                </span>
+              </label>
               <Button onClick={handleImport} disabled={importing}>
                 {importing ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -352,6 +366,7 @@ export default function ImportDevicesPage() {
                   Import successful
                 </p>
                 <p className="mt-1 text-sm text-green-700">
+                  {result.deleted ? `${result.deleted} existing device${result.deleted !== 1 ? "s" : ""} replaced. ` : ""}
                   {result.imported} device
                   {result.imported !== 1 ? "s" : ""} imported successfully.
                 </p>
