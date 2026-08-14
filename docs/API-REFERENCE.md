@@ -348,12 +348,14 @@ PUT /api/v1/quotes/{id}/accept
 | `customerEmail` | string | Yes | Customer's email address |
 | `customerPhone` | string | Yes | Customer's phone number |
 | `shippingAddress` | string | Yes | Address for shipping the device |
-| `paymentMethod` | string | Yes | `"payid"` or `"bank_transfer"` |
+| `paymentMethod` | string | No* | `"payid"` or `"bank_transfer"` |
 | `payIdPhone` | string | If PayID | Phone number for PayID payment |
 | `bankBSB` | string | If bank | BSB number |
 | `bankAccountNumber` | string | If bank | Account number |
 | `bankAccountName` | string | If bank | Account holder name |
 | `imei` | string | No | 15-digit IMEI (if not provided at quote creation) |
+
+> \* **Payment method fields are optional for Mode B partners.** In Mode B, RHEX pays the partner via their registered payment method — customer payment details are not required. If provided, they will be stored for record-keeping.
 
 **Example Request (PayID):**
 

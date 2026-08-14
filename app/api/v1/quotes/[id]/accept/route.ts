@@ -46,52 +46,7 @@ export async function PUT(
       imei,
     } = body;
 
-    // Validate required fields
-    if (
-      !customerName ||
-      !customerEmail ||
-      !customerPhone ||
-      !shippingAddress ||
-      !paymentMethod
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "customerName, customerEmail, customerPhone, shippingAddress, and paymentMethod are required",
-        },
-        { status: 400 }
-      );
-    }
-
-    // Validate payment method
-    if (!["payid", "bank_transfer"].includes(paymentMethod)) {
-      return NextResponse.json(
-        { error: "paymentMethod must be 'payid' or 'bank_transfer'" },
-        { status: 400 }
-      );
-    }
-
-    if (paymentMethod === "payid" && !payIdPhone) {
-      return NextResponse.json(
-        { error: "payIdPhone is required for PayID payment method" },
-        { status: 400 }
-      );
-    }
-
-    if (
-      paymentMethod === "bank_transfer" &&
-      (!bankBSB || !bankAccountNumber || !bankAccountName)
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "bankBSB, bankAccountNumber, and bankAccountName are required for bank transfer",
-        },
-        { status: 400 }
-      );
-    }
-
-    // Get quote
+    // Get quote first so we can check partnerMode before validation
     const quoteRef = adminDb.collection("quotes").doc(id);
     const quoteDoc = await quoteRef.get();
 
@@ -125,6 +80,56 @@ export async function PUT(
       }
     }
 
+    const isModeBPartner = existingData.partnerMode === "B";
+
+    // Validate required fields — payment method is optional for Mode B
+    // (Reflow Hub pays the partner, not the customer)
+    if (
+      !customerName ||
+      !customerEmail ||
+      !customerPhone ||
+      !shippingAddress ||
+      (!isModeBPartner && !paymentMethod)
+    ) {
+      const requiredFields = isModeBPartner
+        ? "customerName, customerEmail, customerPhone, and shippingAddress are required"
+        : "customerName, customerEmail, customerPhone, shippingAddress, and paymentMethod are required";
+      return NextResponse.json(
+        { error: requiredFields },
+        { status: 400 }
+      );
+    }
+
+    // Validate payment method details (only when provided)
+    if (paymentMethod) {
+      if (!["payid", "bank_transfer"].includes(paymentMethod)) {
+        return NextResponse.json(
+          { error: "paymentMethod must be 'payid' or 'bank_transfer'" },
+          { status: 400 }
+        );
+      }
+
+      if (paymentMethod === "payid" && !payIdPhone) {
+        return NextResponse.json(
+          { error: "payIdPhone is required for PayID payment method" },
+          { status: 400 }
+        );
+      }
+
+      if (
+        paymentMethod === "bank_transfer" &&
+        (!bankBSB || !bankAccountNumber || !bankAccountName)
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "bankBSB, bankAccountNumber, and bankAccountName are required for bank transfer",
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     // Build update
     const updateData: Record<string, unknown> = {
       status: "accepted",
@@ -133,15 +138,17 @@ export async function PUT(
       customerEmail,
       customerPhone,
       shippingAddress,
-      paymentMethod,
     };
 
-    if (paymentMethod === "payid") {
-      updateData.payIdPhone = payIdPhone;
-    } else {
-      updateData.bankBSB = bankBSB;
-      updateData.bankAccountNumber = bankAccountNumber;
-      updateData.bankAccountName = bankAccountName;
+    if (paymentMethod) {
+      updateData.paymentMethod = paymentMethod;
+      if (paymentMethod === "payid") {
+        updateData.payIdPhone = payIdPhone;
+      } else {
+        updateData.bankBSB = bankBSB;
+        updateData.bankAccountNumber = bankAccountNumber;
+        updateData.bankAccountName = bankAccountName;
+      }
     }
 
     // Accept IMEI if provided and quote doesn't already have one
