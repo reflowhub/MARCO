@@ -951,9 +951,12 @@ export default function Home() {
                 SHD Licence: 2PS30640
               </p>
             </div>
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-sm text-muted-foreground">
+              <Link href="/terms/trade-in" className="hover:text-foreground transition-colors">
+                Trade-In T&amp;Cs
+              </Link>
               <Link href="/terms" className="hover:text-foreground transition-colors">
-                Terms & Conditions
+                Terms &amp; Conditions
               </Link>
               <Link href="/privacy" className="hover:text-foreground transition-colors">
                 Privacy Policy

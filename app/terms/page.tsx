@@ -138,31 +138,26 @@ export default function TermsPage() {
         {/* ---------------------------------------------------------------- */}
         <section>
           <h2 className="text-lg font-semibold">7. Trade-in service</h2>
-          <p className="mt-2">By submitting a trade-in quote, you:</p>
-          <ul className="mt-2 list-disc space-y-1 pl-5">
-            <li>
-              confirm that you are the legal owner of the device or are
-              authorised to sell it;
-            </li>
-            <li>
-              confirm the device is not stolen, blacklisted, subject to a
-              finance agreement, or otherwise encumbered;
-            </li>
-            <li>
-              agree to remove all personal data, accounts (including iCloud /
-              Google account locks), and passwords before shipping;
-            </li>
-            <li>
-              acknowledge that the final payout may differ from the initial
-              quote if the device&apos;s condition does not match what was
-              described — in which case you may accept the revised offer or have
-              the device returned to you at no cost.
-            </li>
-          </ul>
           <p className="mt-2">
-            Trade-in quotes are valid for 14 days from the date of issue.
-            Payouts are made via PayID or bank transfer within 3–5 business days
-            of inspection.
+            Our trade-in service is subject to separate{" "}
+            <Link href="/terms/trade-in" className="underline hover:text-foreground">
+              Trade-In Terms &amp; Conditions
+            </Link>
+            . By submitting a trade-in quote or sending a device to us, you agree to those terms.
+          </p>
+          <p className="mt-2">
+            In summary, when you submit a trade-in, you confirm that you are the legal owner
+            of the device, that it is not stolen or encumbered, and that you will remove all
+            personal data and account locks before shipping. Trade-in quotes are valid for 14 days,
+            and payment is processed within 3–5 business days of inspection.
+          </p>
+          <p className="mt-2">
+            Please read the full{" "}
+            <Link href="/terms/trade-in" className="underline hover:text-foreground">
+              Trade-In Terms &amp; Conditions
+            </Link>{" "}
+            for complete details about the trade-in process, device assessment, pricing,
+            shipping, and your rights.
           </p>
         </section>
 

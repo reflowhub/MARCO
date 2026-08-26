@@ -49,7 +49,11 @@ export default function QuoteAcceptedEmail({
           </Section>
           <Hr style={hr} />
           <Text style={footer}>
-            If you have any questions, reply to this email or contact us at
+            By accepting this quote, you agree to our{" "}
+            <a href="https://rhex.app/terms/trade-in" style={link}>
+              Trade-In Terms &amp; Conditions
+            </a>
+            . If you have any questions, reply to this email or contact us at
             rhex.app.
           </Text>
         </Container>
@@ -109,4 +113,9 @@ const hr = {
 const footer = {
   fontSize: "12px",
   color: "#9ca3af",
+};
+
+const link = {
+  color: "#3b82f6",
+  textDecoration: "underline",
 };
